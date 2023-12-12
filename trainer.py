@@ -11,8 +11,8 @@ parser = argparse.ArgumentParser(description="Training of RNN model.")
 parser.add_argument('--lr', type=float, default=1e-3, help='learning rate')
 parser.add_argument('--hidden_size', type=int, default=64, help='number of RNN hidden units')
 parser.add_argument('--n_layers', type=int, default=1, help='number of RNN layers')
-parser.add_argument('--batch_size', type=int, default=100, help='batch size')
-parser.add_argument('--epochs', type=int, default=10000)
+parser.add_argument('--batch_size', type=int, default=10000, help='batch size')
+parser.add_argument('--epochs', type=int, default=100)
 
 
 def launch_training(args: argparse.Namespace):

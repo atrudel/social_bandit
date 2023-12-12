@@ -1,9 +1,19 @@
+import argparse
 import math
 
 import numpy as np
 from matplotlib import pyplot as plt
 from scipy.stats import beta
 from torch.utils.data import Dataset
+
+parser = argparse.ArgumentParser(description="Generation of Bandit trajectories.")
+
+parser.add_argument('--n_train', type=int, default=100000, help='number of training examples')
+parser.add_argument('--n_test', type=int, default=10000, help='number of test examples')
+parser.add_argument('--length', type=int, default=80, help='length of the trial sequences')
+parser.add_argument('--tau_fluc', type=float, default=3, help='temperature of the fluctuation of the mean')
+parser.add_argument('--tau_samp', type=float, default=2, help='temperature of the sampling')
+parser.add_argument('--seed', type=int, default=42, help='initial random state of the generator')
 
 
 class UnrestrictedTrajectoryGenerator:
@@ -65,14 +75,12 @@ class BanditDataset(Dataset):
 
 
 if __name__ == '__main__':
-    tau_fluc = 3
-    tau_samp = 2
-    length = 80
+    args = parser.parse_args()
 
-    generator = UnrestrictedTrajectoryGenerator(tau_fluc, tau_samp, random_state=42)
-    train_set = generator.generate_batch(length, 10000)
-    test_set = generator.generate_batch(length, 100)
+    generator = UnrestrictedTrajectoryGenerator(args.tau_fluc, args.tau_samp, random_state=args.seed)
+    train_set = generator.generate_batch(args.length, args.n_train)
+    test_set = generator.generate_batch(args.length, args.n_test)
 
     np.save('train', train_set)
     np.save('test', test_set)
-    print("Data generated.")
+    print(f"Bandit trajectories generated. ({args.n_train} train, {args.n_test} test, length={args.length})")
