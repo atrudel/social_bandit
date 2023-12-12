@@ -75,3 +75,4 @@ if __name__ == '__main__':
 
     np.save('train', train_set)
     np.save('test', test_set)
+    print("Data generated.")

@@ -3,6 +3,8 @@ import torch
 import torch.nn as nn
 from torchmetrics.classification import BinaryAccuracy
 
+from config import DEVICE
+
 
 class RNN(L.LightningModule):
     def __init__(self,
@@ -50,7 +52,7 @@ class RNN(L.LightningModule):
             opt.step()
 
             loss += loss_trial
-            choices[:,i] = out_trial.round().squeeze()
+            choices[:,i] = out_trial.detach().round().squeeze()
 
         self.log('train_loss', loss, prog_bar=True)
         return loss
@@ -59,9 +61,10 @@ class RNN(L.LightningModule):
         trajectories, targets = batch
         seq_len = trajectories.shape[2]
         batch_size = trajectories.shape[0]
-        choices = torch.zeros((batch_size, seq_len), dtype=torch.int64)
+        choices = torch.zeros((batch_size, seq_len), dtype=torch.int64, device=DEVICE)
         choices[:, 0] = self.first_choice  # First choice is pre-decided
-        targets = targets.double()
+        targets = targets.double().to(DEVICE)
+        trajectories = trajectories.to(DEVICE)
         return choices, seq_len, targets, trajectories
 
     def _predict_one_trial(self, choices, i, trajectories):
@@ -80,7 +83,7 @@ class RNN(L.LightningModule):
 
         loss = self.criterion(choices.double(), targets)
         accuracy = self.accuracy(choices, targets)
-        self.log_dict({'val_loss': loss, 'val_acc': accuracy}, prog_bar=True)
+        self.log_dict({'val_loss': loss.item(), 'val_acc': accuracy.item()}, prog_bar=True)
         return accuracy
 
 
