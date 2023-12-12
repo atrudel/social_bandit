@@ -1,5 +1,6 @@
 import abc
 import enum
+from pathlib import Path
 from typing import List
 
 
@@ -21,5 +22,9 @@ class DummyStrategy(Strategy):
             return Choice.PARTNER_1
         else:
             return Choice.PARTNER_2
+
+class RNNStrategy(Strategy):
+    def __init__(self, model_path: str):
+        path = Path(model_path)
 
 

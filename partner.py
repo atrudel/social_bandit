@@ -1,7 +1,7 @@
 import numpy as np
 
 from config import POINTS_PER_TURN
-from trajectory import Trajectory
+from data import Trajectory
 
 
 class Partner:

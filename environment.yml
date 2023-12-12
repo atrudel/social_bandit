@@ -1,0 +1,13 @@
+name: social_bandit
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pytorch
+  - lightning
+  - matplotlib
+  - numpy
+  - scipy
+  - tqdm
+  - torchmetrics

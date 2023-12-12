@@ -2,11 +2,11 @@ from game import Game
 from partner import Partner
 from player import Player
 from strategies import DummyStrategy
-from trajectory import ConstantTrajectory
+from data import ConstantTrajectory
 
 
 if __name__ == '__main__':
-    n_turns = 10
+    n_turns = 80
 
     player = Player(DummyStrategy())
     partner1 = Partner(ConstantTrajectory(n_turns, 20))
