@@ -20,7 +20,7 @@ def launch_training(args: argparse.Namespace):
     model = RNN(args.lr, args.hidden_size, args.n_layers)
 
     train_data = BanditDataset('train.npy')
-    val_data = BanditDataset('train.npy')
+    val_data = BanditDataset('test.npy')
 
     train_dataloader = DataLoader(train_data, batch_size=args.batch_size, shuffle=True)
     val_dataloader = DataLoader(val_data, batch_size=args.batch_size)

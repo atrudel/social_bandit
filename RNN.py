@@ -54,6 +54,8 @@ class RNN(L.LightningModule):
             loss += loss_trial
             choices[:,i] = out_trial.detach().round().squeeze()
 
+
+
         self.log('train_loss', loss, prog_bar=True)
         return loss
 

@@ -1,5 +1,6 @@
 from typing import List
 
+import torch
 from matplotlib import pyplot as plt
 
 from partner import Partner
@@ -17,6 +18,13 @@ class History:
         self.choices.append(choice)
         self.points.append(points)
 
+    def to_torch(self) -> torch.Tensor:
+        choices = torch.tensor(self.choices).reshape(1, -1)
+        points = torch.tensor(self.points).reshape(1, -1)
+        return torch.stack([choices, points], dim=2)
+
+    def __len__(self) -> int:
+        return len(self.choices)
 
 class Game:
     def __init__(self, player: Player, partner1: Partner, partner2: Partner):
@@ -26,20 +34,20 @@ class Game:
         self.history: History = History()
         self.turn = 0
 
-    def play_turn(self):
-        choice: Choice = self.player.choose_partner(self.turn)
+    def play_trial(self):
+        choice: Choice = self.player.make_choice(self.turn)
         if choice == Choice.PARTNER_1:
-            points = self.partner1.play_turn(self.turn)
+            points = self.partner1.play_trial(self.turn)
             self.partner2.pass_turn(self.turn)
         else:
-            points = self.partner2.play_turn(self.turn)
+            points = self.partner2.play_trial(self.turn)
             self.partner1.pass_turn(self.turn)
         self.turn += 1
         self.history.update(choice, points)
 
     def play_n_turns(self, n: int):
         for round in trange(n):
-            self.play_turn()
+            self.play_trial()
 
     def visualize(self):
         plt.plot(self.history.points)

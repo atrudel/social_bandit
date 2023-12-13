@@ -10,7 +10,7 @@ class Partner:
         self.history = []
         self.score = 0
 
-    def play_turn(self, turn: int) -> int:
+    def play_trial(self, turn: int) -> int:
         returned_points: int = self.trajectory[turn]
         kept_points: int = POINTS_PER_TURN - returned_points
         self.history.append(kept_points)
