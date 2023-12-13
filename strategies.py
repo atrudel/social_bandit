@@ -1,17 +1,7 @@
 import abc
-import enum
-from pathlib import Path
-from typing import List
-
-import torch
 
 from RNN import RNN
-from game import History
-
-
-class Choice(enum.Enum):
-    PARTNER_1 = "Partner 1"
-    PARTNER_2 = "Partner 2"
+from utils import History, Choice
 
 
 # Base class
@@ -33,9 +23,14 @@ class RNNStrategy(Strategy):
         self.model = RNN.load_from_checkpoint(model_path)
 
     def __call__(self, history: History) -> Choice:
-        out = self.model(history.to_torch())
-        # Todo
-        raise NotImplementedError
+        if len(history) == 0:
+            return Choice.PARTNER_1
+        else:
+            out = self.model(history.to_torch())
+            if out.item() >= 0.5:
+                return Choice.PARTNER_2
+            else:
+                return Choice.PARTNER_1
 
 
 

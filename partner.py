@@ -1,22 +1,21 @@
-import numpy as np
+from typing import Union
 
-from config import POINTS_PER_TURN
-from data import Trajectory
+import numpy as np
 
 
 class Partner:
-    def __init__(self, trajectory: Trajectory):
-        self.trajectory: Trajectory = trajectory
-        self.history = []
-        self.score = 0
+    def __init__(self, trajectories: np.ndarray):
+        self.trajectories: np.ndarray = trajectories
+        assert self.trajectories.ndim == 2, "Trajectory array should have 2 dimensions: batch x length"
 
-    def play_trial(self, turn: int) -> int:
-        returned_points: int = self.trajectory[turn]
-        kept_points: int = POINTS_PER_TURN - returned_points
-        self.history.append(kept_points)
-        self.score += kept_points
-        return returned_points
+    def play_trial(self, trial: int, traj_idx: int = None) -> Union[int, np.ndarray]:
+        # Play on a batch of games
+        if traj_idx is None:
+            return self.trajectories[:, trial]
+        # Play only one game, specified by traj_idx
+        else:
+            return self.trajectories[traj_idx, trial]
 
-    def pass_turn(self, turn: int):
-        self.history.append(0)
+    def __len__(self):
+        return self.trajectories.shape[1]
 

@@ -1,18 +1,35 @@
+import argparse
+import glob
+from pathlib import Path
+
+from data import BanditDataset
 from game import Game
 from partner import Partner
 from player import Player
-from strategies import AlternatingStrategy
-from data import ConstantTrajectory
+from strategies import RNNStrategy
+
+parser = argparse.ArgumentParser(description="Launch a social bandit game.")
+
+parser.add_argument('--file', type=str, default='test.npy',
+                    help='File containing bandit trajectories')
+parser.add_argument('--trajectory_no', type=int, required=False, default=None,
+                    help='Index of the trajectory to play. If specified, only one trajectory will be executed and visualized.')
+parser.add_argument('--experiment_name', type=str,
+                    help='Name of the directory within lightning_logs that contains the trained model')
 
 
 if __name__ == '__main__':
-    n_turns = 80
+    args = parser.parse_args()
 
-    # Todo: dataset
-    player = Player(AlternatingStrategy())
-    partner1 = Partner(ConstantTrajectory(n_turns, 20))
-    partner2 = Partner(ConstantTrajectory(n_turns, 50))
+    test_dataset = BanditDataset(args.file)
 
-    game = Game(player, partner1, partner2)
-    game.play_n_turns(n_turns)
-    game.visualize()
+    if args.trajectory_no is not None:
+        bandit_trajectories, _ = test_dataset[args.trajectory_no]  # dims: batch, 2, length
+
+        checkpoint_path: str = glob.glob(f"lightning_logs/{args.experiment_name}/checkpoints/*.ckpt")[-1]
+        player = Player(RNNStrategy(checkpoint_path))
+        partner1 = Partner(bandit_trajectories[0].reshape(1, -1))
+        partner2 = Partner(bandit_trajectories[1].reshape(1, -1))
+        game = Game(player, partner1, partner2)
+
+        game.visualize_one_round(args.trajectory_no)
