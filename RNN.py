@@ -1,93 +1,135 @@
 import lightning as L
 import torch
 import torch.nn as nn
-from torchmetrics.classification import BinaryAccuracy
+from torchtyping import TensorType
 
-from config import DEVICE
+from metrics import accuracy, excess_reward
 
 
 class RNN(L.LightningModule):
     def __init__(self,
-                 learning_rate,
-                 hidden_size,
-                 num_layers = 1,
-                 first_choice = 0
+                 learning_rate: float,
+                 hidden_size: int,
+                 num_layers: int,
+                 first_choice: int = 0  # Action to always choose on first trial (0 or 1)
                  ):
         super(RNN, self).__init__()
         self.save_hyperparameters()
         self.automatic_optimization = False
         self.first_choice = first_choice
+        self.first_prob = 0.5
 
         self.rnn = nn.RNN(
             input_size=2,
             hidden_size=hidden_size,
             num_layers=num_layers,
             batch_first=True
-        ).double()
-        self.fc = nn.Linear(hidden_size, 1).double()
+        )
+        self.fc = nn.Linear(hidden_size, 1)
         self.sigmoid = nn.Sigmoid()
-        self.criterion = nn.BCELoss()
-        self.accuracy = BinaryAccuracy()
 
-    def forward(self, input):
-        out, _ = self.rnn(input)
-        out = out[:, -1, :]  # batch, seq_len, hidden_size
+    def forward(self, input, h_0):
+        out, h_n = self.rnn(input, h_0)
+        out = out[:, -1, :]  # [batch, seq_len, hidden_size], taking the last hidden state of the sequence
         out = self.fc(out)
         out = self.sigmoid(out)
-        return out
+        return out, h_n
 
     def training_step(self, batch, batch_idx):
         self.train()
-        choices, seq_len, targets, trajectories = self._prepare_prediction_variables(batch)
-        loss = 0
+        # Initialize sequential variables from batch and pre-fill with the default first action
+        probs, actions, rewards, seq_len, targets, trajectories = self._prepare_prediction_variables(batch)
 
-        for i in range(1, seq_len):
-            out_trial = self._predict_one_trial(choices, i, trajectories)
-            target_trial = targets[:, i].reshape(-1, 1)
+        action = actions[:, 0].reshape(-1, 1)
+        reward = rewards[:, 0].reshape(-1, 1)
+        hidden_state = None
 
-            opt = self.optimizers()
-            opt.zero_grad()
-            loss_trial = self.criterion(out_trial, target_trial)
-            self.manual_backward(loss_trial)
-            opt.step()
+        # Iterate over sequence length, skipping first action
+        for i_trial in range(1, seq_len):
+            action, out_prob, hidden_state = self._choose_next_action(action, reward, i_trial, hidden_state)
+            reward = self._play_action(action, i_trial, trajectories)
 
-            loss += loss_trial
-            choices[:,i] = out_trial.detach().round().squeeze()
+            # Store data in sequence history
+            probs[:, i_trial] = out_prob[:, 0]
+            actions[:, i_trial] = action[:, 0]
+            rewards[:, i_trial] = reward[:, 0]
 
+        # Compute loss on sequence and optimize
+        opt = self.optimizers()
+        opt.zero_grad()
+        loss = self.criterion(rewards, probs, actions)
+        self.manual_backward(loss)
+        opt.step()
 
-
-        self.log('train_loss', loss, prog_bar=True)
+        self.log('train_loss', loss.item(), prog_bar=True)
         return loss
 
     def _prepare_prediction_variables(self, batch):
         trajectories, targets = batch
         seq_len = trajectories.shape[2]
         batch_size = trajectories.shape[0]
-        choices = torch.zeros((batch_size, seq_len), dtype=torch.int64, device=DEVICE)
-        choices[:, 0] = self.first_choice  # First choice is pre-decided
-        targets = targets.double().to(DEVICE)
-        trajectories = trajectories.to(DEVICE)
-        return choices, seq_len, targets, trajectories
 
-    def _predict_one_trial(self, choices, i, trajectories):
-        rewards = torch.gather(trajectories, 1, choices.unsqueeze(1)).squeeze()  # batch_size, seq_len
-        input = torch.stack([choices, rewards], dim=2)[:, :i, :]  # batch_size, seq_len, n_features
-        out_trial = self(input)
-        return out_trial
+        actions = torch.zeros((batch_size, seq_len), dtype=torch.int64)
+        actions[:, 0] = self.first_choice  # First choice is pre-decided
+
+        probs = torch.zeros_like(actions, dtype=torch.float)
+        probs[:, 0] = self.first_prob
+
+        rewards = torch.zeros_like(actions, dtype=torch.float)
+        rewards[:, 0] = trajectories[:, self.first_choice, 0]
+
+
+        return probs, actions, rewards, seq_len, targets, trajectories
+
+    def _choose_next_action(self, action, reward, i_trial, hidden_state):
+        # Prepare RNN input
+        input = torch.stack([action, reward], dim=2)[:, :i_trial, :]  # batch_size, seq_len, n_features
+
+        # Apply RNN on sequence of choices and rewards
+        out_prob, hidden_state = self(input, hidden_state)
+
+        # Sample action from output probability
+        action = torch.bernoulli(out_prob).long()
+        return action, out_prob, hidden_state
+
+    def _play_action(self, action, i_trial, trajectories) -> TensorType["batch", 1, float]:
+        reward = torch.gather(trajectories[:, :, i_trial], 1, action)
+        return reward
+
+    def criterion(self, rewards, probs, actions):
+        mean_rewards = rewards.mean(dim=1).unsqueeze(1)
+        deltas = rewards - mean_rewards
+        corrected_probs = probs * actions + (1 - probs) * (1 - actions)
+        losses = -deltas * corrected_probs
+        return losses.sum()
 
     def validation_step(self, batch, batch_idx):
         self.eval()
-        choices, seq_len, targets, trajectories = self._prepare_prediction_variables(batch)
+        probs, actions, rewards, seq_len, targets, trajectories = self._prepare_prediction_variables(batch)
 
-        for i in range(1, seq_len):
-            out_trial = self._predict_one_trial(choices, i, trajectories)
-            choices[:,i] = out_trial.round().squeeze()
+        action = actions[:, 0].reshape(-1, 1)
+        reward = rewards[:, 0].reshape(-1, 1)
+        hidden_state = None
 
-        loss = self.criterion(choices.double(), targets)
-        accuracy = self.accuracy(choices, targets)
-        self.log_dict({'val_loss': loss.item(), 'val_acc': accuracy.item()}, prog_bar=True)
+        for i_trial in range(1, seq_len):
+            action, out_prob, hidden_state = self._choose_next_action(action, reward, i_trial, hidden_state)
+            reward = self._play_action(action, i_trial, trajectories)
+
+            # Store data in sequence history
+            probs[:, i_trial] = out_prob[:, 0]
+            actions[:, i_trial] = action[:, 0]
+            rewards[:, i_trial] = reward[:, 0]
+
+        loss = self.criterion(rewards, probs, actions)
+        acc = accuracy(actions, targets)
+        excess_rwd = excess_reward(actions, trajectories)
+
+        self.log_dict({
+            'val_loss': loss.item(),
+            'val_acc': acc.item(),
+            'val_excess_rwd': excess_rwd.item()
+        }, prog_bar=True)
         return accuracy
-
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(

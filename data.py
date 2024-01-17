@@ -50,7 +50,7 @@ class UnrestrictedTrajectoryGenerator:
 
 class BanditDataset(Dataset):
     def __init__(self, filename):
-        self.values = np.load(filename)
+        self.values = np.load(filename).astype('float32')
 
     def __len__(self):
         return self.values.shape[0]

@@ -11,3 +11,6 @@ dependencies:
   - scipy
   - tqdm
   - torchmetrics
+  - torchtyping
+  - tensorboard
+  - jupyter
