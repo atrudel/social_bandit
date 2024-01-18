@@ -14,4 +14,4 @@ def excess_reward(actions, trajectories):
     rewards = torch.gather(trajectories, 1, actions.unsqueeze(1))
     missed_rewards = torch.gather(trajectories, 1, not_chosen_actions.unsqueeze(1))
     excess_rewards = rewards - missed_rewards
-    return excess_rewards.sum()
+    return excess_rewards.mean()
