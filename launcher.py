@@ -1,12 +1,11 @@
 import argparse
 import glob
-from pathlib import Path
 
 from data import BanditDataset
-from game import Game
-from partner import Partner
-from player import Player
-from strategies import RNNStrategy
+from game.game import Game
+from game.partner import Partner
+from game.player import Player
+from game.strategies import RNNStrategy
 
 parser = argparse.ArgumentParser(description="Launch a social bandit game.")
 
