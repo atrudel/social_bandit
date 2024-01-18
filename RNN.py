@@ -8,11 +8,12 @@ from metrics import accuracy, excess_reward
 
 class RNN(L.LightningModule):
     def __init__(self,
-                 learning_rate: float,
-                 hidden_size: int,
-                 num_layers: int,
-                 first_choice: int = 0  # Action to always choose on first trial (0 or 1)
-                 ):
+             learning_rate: float,
+             hidden_size: int,
+             num_layers: int,
+             commit: str = None,
+             first_choice: int = 0  # Action to always choose on first trial (0 or 1)
+             ):
         super(RNN, self).__init__()
         self.save_hyperparameters()
         self.automatic_optimization = False

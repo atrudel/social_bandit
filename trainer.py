@@ -14,11 +14,12 @@ parser.add_argument('--hidden_size', type=int, default=128, help='number of RNN 
 parser.add_argument('--n_layers', type=int, default=2, help='number of RNN layers')
 parser.add_argument('--batch_size', type=int, default=1000, help='batch size')
 parser.add_argument('--epochs', type=int, default=100)
-parser.add_argument('--log_dir', type=str, default=None)
+parser.add_argument('--commit', type=str, default=None, help='current commit hash of the code being run')
+parser.add_argument('--debug', action='store_true', help='debug mode')
 
 
 def launch_training(args: argparse.Namespace):
-    model = RNN(args.lr, args.hidden_size, args.n_layers)
+    model = RNN(args.lr, args.hidden_size, args.n_layers, commit=args.commit)
 
     train_data = BanditDataset('train.npy')
     val_data = BanditDataset('test.npy')
@@ -26,7 +27,12 @@ def launch_training(args: argparse.Namespace):
     train_dataloader = DataLoader(train_data, batch_size=args.batch_size, shuffle=True)
     val_dataloader = DataLoader(val_data, batch_size=args.batch_size)
 
-    trainer = Trainer(default_root_dir=args.log_dir, accelerator=DEVICE)
+    trainer = Trainer(
+        max_epochs=args.epochs,
+        accelerator=DEVICE,
+        fast_dev_run=True if args.debug else False,
+        logger=False if args.debug else True
+    )
     trainer.fit(model, train_dataloader, val_dataloader)
 
 
