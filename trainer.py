@@ -5,7 +5,7 @@ from lightning import Trainer
 
 from RNN import RNN
 from config import DEVICE
-from data import BanditDataset
+from data_generator import BanditDataset
 
 parser = argparse.ArgumentParser(description="Training of RNN model.")
 
@@ -22,7 +22,7 @@ def launch_training(args: argparse.Namespace):
     model = RNN(args.lr, args.hidden_size, args.n_layers, commit=args.commit)
 
     train_data = BanditDataset('train.npy')
-    val_data = BanditDataset('test.npy')
+    val_data = BanditDataset('val.npy')
 
     train_dataloader = DataLoader(train_data, batch_size=args.batch_size, shuffle=True)
     val_dataloader = DataLoader(val_data, batch_size=args.batch_size)

@@ -1,7 +1,7 @@
 import argparse
 import glob
 
-from data import BanditDataset
+from data_generator import BanditDataset
 from game.game import Game
 from game.partner import Partner
 from game.player import Player

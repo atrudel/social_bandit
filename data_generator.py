@@ -9,7 +9,8 @@ from torch.utils.data import Dataset
 parser = argparse.ArgumentParser(description="Generation of Bandit trajectories.")
 
 parser.add_argument('--n_train', type=int, default=100000, help='number of training examples')
-parser.add_argument('--n_test', type=int, default=10000, help='number of test examples')
+parser.add_argument('--n_val', type=int, default=10000, help='number of validation examples')
+parser.add_argument('--n_test', type=int, default=1000, help='number of test examples')
 parser.add_argument('--length', type=int, default=80, help='length of the trial sequences')
 parser.add_argument('--tau_fluc', type=float, default=3, help='temperature of the fluctuation of the mean')
 parser.add_argument('--tau_samp', type=float, default=2, help='temperature of the sampling')
@@ -79,8 +80,10 @@ if __name__ == '__main__':
 
     generator = UnrestrictedTrajectoryGenerator(args.tau_fluc, args.tau_samp, random_state=args.seed)
     train_set = generator.generate_batch(args.length, args.n_train)
+    val_set = generator.generate_batch(args.length, args.n_val)
     test_set = generator.generate_batch(args.length, args.n_test)
 
     np.save('train', train_set)
+    np.save('val', val_set)
     np.save('test', test_set)
-    print(f"Bandit trajectories generated. ({args.n_train} train, {args.n_test} test, length={args.length})")
+    print(f"Bandit trajectories generated. ({args.n_train} train, {args.n_val} val, {args.n_test} test, length={args.length})")
