@@ -112,7 +112,8 @@ class RNN(L.LightningModule):
         hidden_state = None
 
         for i_trial in range(1, seq_len):
-            action, out_prob, hidden_state = self._choose_next_action(action, reward, i_trial, hidden_state)
+            with torch.no_grad():
+                action, out_prob, hidden_state = self._choose_next_action(action, reward, i_trial, hidden_state)
             reward = self._play_action(action, i_trial, trajectories)
 
             # Store data in sequence history
