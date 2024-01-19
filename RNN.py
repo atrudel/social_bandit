@@ -38,22 +38,7 @@ class RNN(L.LightningModule):
 
     def training_step(self, batch, batch_idx):
         self.train()
-        # Initialize sequential variables from batch and pre-fill with the default first action
-        probs, actions, rewards, seq_len, targets, trajectories = self._prepare_prediction_variables(batch)
-
-        action = actions[:, 0].reshape(-1, 1)
-        reward = rewards[:, 0].reshape(-1, 1)
-        hidden_state = None
-
-        # Iterate over sequence length, skipping first action
-        for i_trial in range(1, seq_len):
-            action, out_prob, hidden_state = self._choose_next_action(action, reward, i_trial, hidden_state)
-            reward = self._play_action(action, i_trial, trajectories)
-
-            # Store data in sequence history
-            probs[:, i_trial] = out_prob[:, 0]
-            actions[:, i_trial] = action[:, 0]
-            rewards[:, i_trial] = reward[:, 0]
+        actions, probs, rewards, _, _ = self.process_trajectory(batch)
 
         # Compute loss on sequence and optimize
         opt = self.optimizers()
@@ -64,6 +49,23 @@ class RNN(L.LightningModule):
 
         self.log('train_loss', loss.item(), prog_bar=True)
         return loss
+
+    def process_trajectory(self, batch):
+        # Initialize sequential variables from batch and pre-fill with the default first action
+        probs, actions, rewards, seq_len, targets, trajectories = self._prepare_prediction_variables(batch)
+        action = actions[:, 0].reshape(-1, 1)
+        reward = rewards[:, 0].reshape(-1, 1)
+        hidden_state = None
+        # Iterate over sequence length, skipping first action
+        for i_trial in range(1, seq_len):
+            action, out_prob, hidden_state = self._choose_next_action(action, reward, i_trial, hidden_state)
+            reward = self._play_action(action, i_trial, trajectories)
+
+            # Store data in sequence history
+            probs[:, i_trial] = out_prob[:, 0]
+            actions[:, i_trial] = action[:, 0]
+            rewards[:, i_trial] = reward[:, 0]
+        return actions, probs, rewards, targets, trajectories
 
     def _prepare_prediction_variables(self, batch):
         trajectories, targets = batch
@@ -106,21 +108,8 @@ class RNN(L.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         self.eval()
-        probs, actions, rewards, seq_len, targets, trajectories = self._prepare_prediction_variables(batch)
-
-        action = actions[:, 0].reshape(-1, 1)
-        reward = rewards[:, 0].reshape(-1, 1)
-        hidden_state = None
-
-        for i_trial in range(1, seq_len):
-            with torch.no_grad():
-                action, out_prob, hidden_state = self._choose_next_action(action, reward, i_trial, hidden_state)
-            reward = self._play_action(action, i_trial, trajectories)
-
-            # Store data in sequence history
-            probs[:, i_trial] = out_prob[:, 0]
-            actions[:, i_trial] = action[:, 0]
-            rewards[:, i_trial] = reward[:, 0]
+        with torch.no_grad():
+            actions, probs, rewards, targets, trajectories = self.process_trajectory(batch)
 
         loss = self.criterion(rewards, probs, actions)
         acc = accuracy(actions, targets)

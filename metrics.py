@@ -9,9 +9,11 @@ def accuracy(actions, targets):
 # def binary_crossentropy(actions, probs, targets):
 #     return nn.functional.binary_crossentropy(probs, targets)
 
-def excess_reward(actions, trajectories):
+def excess_reward(actions, trajectories, batch_average=True):
     not_chosen_actions = 1 - actions
     rewards = torch.gather(trajectories, 1, actions.unsqueeze(1))
     missed_rewards = torch.gather(trajectories, 1, not_chosen_actions.unsqueeze(1))
     excess_rewards = rewards - missed_rewards
-    return excess_rewards.mean()
+    if batch_average:
+        excess_rewards = excess_rewards.mean()
+    return excess_rewards.mean(-1)

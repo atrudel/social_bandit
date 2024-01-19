@@ -6,22 +6,24 @@ from matplotlib import pyplot as plt
 from scipy.stats import beta
 from torch.utils.data import Dataset
 
+from config import SEQUENCE_LENGTH
+
 parser = argparse.ArgumentParser(description="Generation of Bandit trajectories.")
 
 parser.add_argument('--n_train', type=int, default=100000, help='number of training examples')
 parser.add_argument('--n_val', type=int, default=10000, help='number of validation examples')
 parser.add_argument('--n_test', type=int, default=1000, help='number of test examples')
-parser.add_argument('--length', type=int, default=80, help='length of the trial sequences')
+parser.add_argument('--length', type=int, default=SEQUENCE_LENGTH, help='length of the trial sequences')
 parser.add_argument('--tau_fluc', type=float, default=3, help='temperature of the fluctuation of the mean')
 parser.add_argument('--tau_samp', type=float, default=2, help='temperature of the sampling')
 parser.add_argument('--seed', type=int, default=42, help='initial random state of the generator')
 
 
 class UnrestrictedTrajectoryGenerator:
-    def __init__(self, tau_fluc, tau_samp, random_state=None):
+    def __init__(self, tau_fluc, tau_samp, seed=None):
         self.tau_fluc = tau_fluc
         self.tau_samp = tau_samp
-        np.random.seed(random_state)
+        np.random.seed(seed)
 
     def generate_batch(self, length, batch_size):
         # Generate 'batch_size' pairs of bandit trajectories
@@ -41,7 +43,7 @@ class UnrestrictedTrajectoryGenerator:
             self.tau_fluc
         )
         for i in range(1, length):
-            means[:,i] = self._beta_sample(means[:, i - 1], self.tau_fluc)
+            means[:, i] = self._beta_sample(means[:, i - 1], self.tau_fluc)
         return means
 
     def _sample_values(self, means):
@@ -50,8 +52,11 @@ class UnrestrictedTrajectoryGenerator:
 
 
 class BanditDataset(Dataset):
-    def __init__(self, filename):
-        self.values = np.load(filename).astype('float32')
+    def __init__(self, filename=None, values=None):
+        if values is None:
+            self.values = np.load(filename).astype('float32')
+        else:
+            self.values = values.astype('float32')
 
     def __len__(self):
         return self.values.shape[0]
@@ -61,14 +66,14 @@ class BanditDataset(Dataset):
         target = np.argmax(bandits, axis=0).astype('float32')
         return bandits, target
 
-    def plot(self, item):
+    def plot(self, item, comment=None):
         bandits, target = self[item]
         traj1 = bandits[0]
         traj2 = bandits[1]
         plt.plot(traj1, label="Bandit 0")
         plt.plot(traj2, label="Bandit 1")
         plt.scatter(list(range(len(traj1))), target, label="target")
-        plt.title(f"Bandit trajectories")
+        plt.title(f"Bandit trajectories" + (f" - {comment}" if comment is not None else None))
         plt.legend()
         plt.xlabel("Time step")
         plt.ylabel("Reward")
@@ -78,7 +83,7 @@ class BanditDataset(Dataset):
 if __name__ == '__main__':
     args = parser.parse_args()
 
-    generator = UnrestrictedTrajectoryGenerator(args.tau_fluc, args.tau_samp, random_state=args.seed)
+    generator = UnrestrictedTrajectoryGenerator(args.tau_fluc, args.tau_samp, seed=args.seed)
     train_set = generator.generate_batch(args.length, args.n_train)
     val_set = generator.generate_batch(args.length, args.n_val)
     test_set = generator.generate_batch(args.length, args.n_test)
