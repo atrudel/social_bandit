@@ -28,9 +28,9 @@ class Game:
     def visualize(self, round_idx: int):
         plt.subplot(2, 1, 1)
         plt.title("Bandit trajectories and choices made by the model")
-        plt.plot(self.partner1.trajectories[0], label="Bandit 0", color="blue")
-        plt.plot(self.partner2.trajectories[0], label="Bandit 1", color="orange")
-        choices_colors = ["blue" if choice == 0 else "orange" for choice in self.history.choices]
+        plt.plot(self.partner1.trajectories[0], label="Bandit 0", color="tab:blue")
+        plt.plot(self.partner2.trajectories[0], label="Bandit 1", color="tab:orange")
+        choices_colors = ["tab:blue" if choice == 0 else "tab:orange" for choice in self.history.choices]
         plt.scatter(list(range(len(self.history.choices))), self.history.choices, label="choices", color=choices_colors)
         plt.legend()
         plt.xlabel("Time step")

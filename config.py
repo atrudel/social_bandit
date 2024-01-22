@@ -1,5 +1,6 @@
 # Technical configuration
 DEVICE = 'cpu'
+DATA_DIR = '.'
 
 # Task-related configuration
 POINTS_PER_TURN = 100

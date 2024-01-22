@@ -12,7 +12,7 @@ import seaborn as sns
 from tqdm import tqdm
 
 from RNN import RNN
-from config import DEVICE, POINTS_PER_TURN, SEQUENCE_LENGTH
+from config import DEVICE, POINTS_PER_TURN, SEQUENCE_LENGTH, DATA_DIR
 from data_generator import BanditGenerator, BanditDataset
 from metrics import accuracy, excess_reward
 
@@ -23,7 +23,7 @@ parser.add_argument('--seed',  type=int, default=42, help='Random state to use f
 
 def quantitative_eval(model):
     model.eval()
-    test_set = BanditDataset('test.npy')  # Todo: handle this better
+    test_set = BanditDataset('test', DATA_DIR)  # Todo: handle this better
     test_dataloader = DataLoader(test_set, batch_size=len(test_set))
     batch = list(test_dataloader)[0]
 
@@ -87,7 +87,7 @@ def repeat_probability_eval(model):
 
     model.eval()
     # Load test dataset
-    test_set = BanditDataset('test.npy')  # Todo: handle this better
+    test_set = BanditDataset('test', DATA_DIR)  # Todo: handle this better
     test_dataloader = DataLoader(test_set, batch_size=len(test_set))
     batch = list(test_dataloader)[0]
 

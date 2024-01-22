@@ -68,7 +68,7 @@ class RNN(L.LightningModule):
         return actions, probs, rewards, targets, trajectories
 
     def _prepare_prediction_variables(self, batch):
-        trajectories, targets = batch
+        _, trajectories, targets = batch  # Ignoring latent means for now
         seq_len = trajectories.shape[2]
         batch_size = trajectories.shape[0]
 

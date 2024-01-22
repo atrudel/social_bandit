@@ -1,7 +1,6 @@
 import argparse
-import concurrent
 import math
-from itertools import repeat
+from pathlib import Path
 
 import numpy as np
 from matplotlib import pyplot as plt
@@ -9,7 +8,7 @@ from scipy.stats import beta
 from torch.utils.data import Dataset
 from tqdm import tqdm
 
-from config import SEQUENCE_LENGTH, TAU_FLUC, TAU_SAMP, EPIMIN, EPIMAX, NEPI
+from config import SEQUENCE_LENGTH, TAU_FLUC, TAU_SAMP, EPIMIN, EPIMAX, NEPI, DATA_DIR
 
 parser = argparse.ArgumentParser(description="Generation of Bandit trajectories.")
 
@@ -99,15 +98,9 @@ class BanditGenerator:
         self.episode_generator.reset(episode_pool_size=batch_size * 10)
         self.means = self._generate_latent_means(length, batch_size)
         self.values = self._sample_values(self.means)
-        return self.values
+        return (self.means, self.values)
 
     def _generate_latent_means(self, length: int, batch_size: int):
-        # with concurrent.futures.ProcessPoolExecutor() as executor:
-        #     trajectories = list(tqdm(executor.map(
-        #         self._generate_trajectory, repeat(length, batch_size * 2), repeat(self.nepi, batch_size * 2)),
-        #         total=batch_size * 2, desc="Generating trajectories"
-        #     ))
-        # trajectories = np.array(trajectories)
         trajectories = np.array([self._generate_trajectory(length, self.nepi)
                                  for _ in tqdm(range(batch_size * 2), desc="Generating trajectories")])
         # Arrange bandits by pairs
@@ -135,29 +128,34 @@ class BanditGenerator:
 
 
 class BanditDataset(Dataset):
-    def __init__(self, filename=None, values=None):
+    def __init__(self, split: str = None, directory: str = DATA_DIR, values=None, means=None):
         if values is None:
-            self.values = np.load(filename).astype('float32')
+            path = Path(directory)
+            self.values = np.load(path / f"{split}_values.npy").astype('float32')
+            self.means = np.load(path / f"{split}_means.npy").astype('float32')
+            print(f"Loaded {split} set located in {path}")
         else:
             self.values = values.astype('float32')
+            self.means = means.astype('float32')
 
     def __len__(self):
         return self.values.shape[0]
 
     def __getitem__(self, item):
-        bandits = self.values[item]
-        target = np.argmax(bandits, axis=0).astype('float32')
-        return bandits, target
+        means = self.means[item]
+        values = self.values[item]
+        target = np.argmax(values, axis=0).astype('float32')
+        return means, values, target
 
     def plot(self, item, comment=None):
-        bandits, target = self[item]
-        traj1 = bandits[0]
-        traj2 = bandits[1]
-        plt.plot(traj1, label="Bandit 0")
-        plt.plot(traj2, label="Bandit 1")
-        plt.scatter(list(range(len(traj1))), target, label="target")
+        means, values, target = self[item]
+        plt.plot(values[0], label="Bandit 0: values", color="tab:blue")
+        plt.plot(means[0], label="Bandit 0: latent mean", color="tab:cyan", linestyle="dotted")
+        plt.plot(values[1], label="Bandit 1: values", color="orange")
+        plt.plot(means[1], label="Bandit 1: latent mean", color="tan", linestyle="dotted")
+        plt.scatter(list(range(len(values[0]))), target, label="target")
         plt.title(f"Bandit trajectories (no {item})" + (f" - {comment}" if comment is not None else ""))
-        plt.legend()
+        plt.legend(bbox_to_anchor=(1, 0.5), loc="upper left")
         plt.xlabel("Time step")
         plt.ylabel("Reward")
         plt.show()
@@ -174,13 +172,16 @@ if __name__ == '__main__':
         args.nepi,
         seed=args.seed
     )
-    train_set = generator.generate_batch(args.n_train, args.length)
+    train_means, train_values = generator.generate_batch(args.n_train, args.length)
 
     if not args.debug:
-        val_set = generator.generate_batch(args.n_val, args.length)
-        test_set = generator.generate_batch(args.n_test, args.length)
+        val_means, val_values = generator.generate_batch(args.n_val, args.length)
+        test_means, test_values = generator.generate_batch(args.n_test, args.length)
 
-        np.save('train', train_set)
-        np.save('val', val_set)
-        np.save('test', test_set)
+        np.save('train_means', train_means)
+        np.save('train_values', train_values)
+        np.save('val_means', val_means)
+        np.save('val_values', val_values)
+        np.save('test_means', test_means)
+        np.save('test_values', test_values)
         print(f"Bandit trajectories generated. ({args.n_train} train, {args.n_val} val, {args.n_test} test, length={args.length})")

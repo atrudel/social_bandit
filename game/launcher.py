@@ -9,8 +9,8 @@ from game.strategies import RNNStrategy
 
 parser = argparse.ArgumentParser(description="Launch a social bandit game.")
 
-parser.add_argument('--file', type=str, default='test.npy',
-                    help='File containing bandit trajectories')
+parser.add_argument('--data_dir', type=str, default='.',
+                    help='Directory containing bandit trajectory data files')
 parser.add_argument('--trajectory_no', type=int, required=False, default=None,
                     help='Index of the trajectory to play. If specified, only one trajectory will be executed and visualized.')
 parser.add_argument('--experiment_name', type=str,
@@ -20,10 +20,10 @@ parser.add_argument('--experiment_name', type=str,
 if __name__ == '__main__':
     args = parser.parse_args()
 
-    test_dataset = BanditDataset(args.file)
+    test_dataset = BanditDataset('test', args.data_dir)
 
     if args.trajectory_no is not None:
-        bandit_trajectories, _ = test_dataset[args.trajectory_no]  # dims: batch, 2, length
+        _, bandit_trajectories, _ = test_dataset[args.trajectory_no]  # dims: batch, 2, length
 
         checkpoint_path: str = glob.glob(f"lightning_logs/{args.experiment_name}/checkpoints/*.ckpt")[-1]
         player = Player(RNNStrategy(checkpoint_path))
