@@ -1,6 +1,7 @@
 # Technical configuration
 DEVICE = 'cpu'
-DATA_DIR = '.'
+DATA_DIR = 'data'
+MODEL_DIR = 'lightning_logs'
 
 # Task-related configuration
 POINTS_PER_TURN = 100

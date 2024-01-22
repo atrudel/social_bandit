@@ -1,5 +1,6 @@
 import argparse
 import math
+import os
 from pathlib import Path
 
 import numpy as np
@@ -52,6 +53,7 @@ class EpisodeGenerator:
 
     def _generate_episodes(self, number):
         np.random.seed(self.seed)
+        self.seed += 1
         # episodes = []
         # for _ in tqdm(range(number), desc='Generating episodes'):
         #     episodes.append(self._generate_episode(self.min_length, self.max_length))
@@ -110,17 +112,15 @@ class BanditGenerator:
         return paired_trajectories
 
     def _generate_trajectory(self, length, num_episodes):
-        episodes = self.episode_generator.sample_episodes(num_episodes)
-        # Flip every odd-indexed episode so that it goes below 0.5
-        for i in range(num_episodes):
-            if i % 2 == 1:
-                episodes[i] = 1 - episodes[i]
-        trajectory = np.concatenate(episodes, axis=0)
-
-        if len(trajectory) < length:
-            return self._generate_trajectory(length, num_episodes)
-        else:
-            return trajectory[:length]
+        trajectory = np.array([])
+        while len(trajectory) < length:
+            episodes = self.episode_generator.sample_episodes(num_episodes)
+            # Flip every odd-indexed episode so that it goes below 0.5
+            for i in range(num_episodes):
+                if i % 2 == 1:
+                    episodes[i] = 1 - episodes[i]
+            trajectory = np.concatenate(episodes, axis=0)
+        return trajectory[:length]
 
     def _sample_values(self, means):
         values = beta_sample(means, self.tau_samp)
@@ -175,13 +175,16 @@ if __name__ == '__main__':
     train_means, train_values = generator.generate_batch(args.n_train, args.length)
 
     if not args.debug:
+        data_dir = Path(DATA_DIR)
+        os.makedirs(data_dir, exist_ok=True)
+
         val_means, val_values = generator.generate_batch(args.n_val, args.length)
         test_means, test_values = generator.generate_batch(args.n_test, args.length)
 
-        np.save('train_means', train_means)
-        np.save('train_values', train_values)
-        np.save('val_means', val_means)
-        np.save('val_values', val_values)
-        np.save('test_means', test_means)
-        np.save('test_values', test_values)
+        np.save(data_dir / 'train_means', train_means)
+        np.save(data_dir / 'train_values', train_values)
+        np.save(data_dir / 'val_means', val_means)
+        np.save(data_dir / 'val_values', val_values)
+        np.save(data_dir / 'test_means', test_means)
+        np.save(data_dir / 'test_values', test_values)
         print(f"Bandit trajectories generated. ({args.n_train} train, {args.n_val} val, {args.n_test} test, length={args.length})")

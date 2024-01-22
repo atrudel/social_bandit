@@ -1,8 +1,12 @@
+import glob
+import os
+
 import lightning as L
 import torch
 import torch.nn as nn
 from torchtyping import TensorType
 
+from config import MODEL_DIR, DEVICE
 from metrics import accuracy, excess_reward
 
 
@@ -128,3 +132,14 @@ class RNN(L.LightningModule):
             lr=self.hparams.learning_rate
         )
         return optimizer
+
+    @classmethod
+    def load(cls, version: str):
+        checkpoint_path = glob.glob(os.path.join(
+            MODEL_DIR,
+            version,
+            'checkpoints/*.ckpt'
+        ))[-1]
+        model = cls.load_from_checkpoint(checkpoint_path, map_location=DEVICE)
+        print(f'Loading RNN ({version}) - checkpoint from {checkpoint_path}')
+        return model

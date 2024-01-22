@@ -33,7 +33,7 @@ def quantitative_eval(model):
 
     print("Avg. Accuracy on test set: ", acc)
     print("Avg. Excess reward on test set: ", excess_rwds.mean().item())
-    print(excess_rwds.numpy().shape)
+
     plt.hist(excess_rwds.numpy(), bins=50)
     plt.title("Distribution of excess rewards on episodes of test set")
     plt.show()
@@ -56,8 +56,8 @@ def uncertainty_generalization_eval(model, seed=None, batch_size=10):
     for tau_fluc in tqdm(tau_flucs):
         for tau_samp in tau_samps:
             data_generator = BanditGenerator(tau_fluc, tau_samp, seed)
-            data = data_generator.generate_batch(batch_size=batch_size, length=SEQUENCE_LENGTH)
-            dataset = BanditDataset(values=data)
+            means, values = data_generator.generate_batch(batch_size=batch_size, length=SEQUENCE_LENGTH)
+            dataset = BanditDataset(values=values, means=means)
             dataloader = DataLoader(dataset, batch_size=batch_size)
             batch = list(dataloader)[0]
 
