@@ -13,7 +13,7 @@ from tqdm import tqdm
 
 from RNN import RNN
 from config import DEVICE, POINTS_PER_TURN, SEQUENCE_LENGTH
-from data_generator import UnrestrictedTrajectoryGenerator, BanditDataset
+from data_generator import BanditGenerator, BanditDataset
 from metrics import accuracy, excess_reward
 
 parser = argparse.ArgumentParser(description="Evaluation of model.")
@@ -55,8 +55,8 @@ def uncertainty_generalization_eval(model, seed=None, batch_size=10):
 
     for tau_fluc in tqdm(tau_flucs):
         for tau_samp in tau_samps:
-            data_generator = UnrestrictedTrajectoryGenerator(tau_fluc, tau_samp, seed)
-            data = data_generator.generate_batch(length=SEQUENCE_LENGTH, batch_size=batch_size)
+            data_generator = BanditGenerator(tau_fluc, tau_samp, seed)
+            data = data_generator.generate_batch(batch_size=batch_size, length=SEQUENCE_LENGTH)
             dataset = BanditDataset(values=data)
             dataloader = DataLoader(dataset, batch_size=batch_size)
             batch = list(dataloader)[0]
