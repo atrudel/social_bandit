@@ -48,8 +48,8 @@ def uncertainty_generalization_eval(model, seed=None, batch_size=10):
         )
 
     model.eval()
-    tau_flucs = np.logspace(-10, 1, num=20, base=3.0)
-    tau_samps = np.logspace(-10, 1, num=20, base=3.0)
+    tau_flucs = np.linspace(1, 3, num=10)
+    tau_samps = np.linspace(0, 3, num=10)
     accuracies = pd.DataFrame(columns=['tau_fluc', 'tau_samp', 'accuracy'])
     excess_rewards = pd.DataFrame(columns=['tau_fluc', 'tau_samp', 'excess_reward'])
 

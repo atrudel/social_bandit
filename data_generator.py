@@ -52,8 +52,9 @@ class EpisodeGenerator:
         return self._generate_episodes(n)
 
     def _generate_episodes(self, number):
-        np.random.seed(self.seed)
-        self.seed += 1
+        if self.seed is not None:
+            np.random.seed(self.seed)
+            self.seed += 1
         # episodes = []
         # for _ in tqdm(range(number), desc='Generating episodes'):
         #     episodes.append(self._generate_episode(self.min_length, self.max_length))
