@@ -116,12 +116,14 @@ class RNN(L.LightningModule):
             actions, probs, rewards, targets, trajectories = self.process_trajectory(batch)
 
         loss = self.criterion(rewards, probs, actions)
-        acc = accuracy(actions, targets)
+        softmax_accuracy = accuracy(actions, targets) # Accuracy based on the sampled actions
+        argmax_accuracy = accuracy(probs, targets) # Accuracy based on the output probabilities
         excess_rwd = excess_reward(actions, trajectories)
 
         self.log_dict({
             'val_loss': loss.item(),
-            'val_acc': acc.item(),
+            'val_accuracy_softmax': softmax_accuracy.item(),
+            'val_accuracy_argmax': argmax_accuracy.item(),
             'val_excess_rwd': excess_rwd.item()
         }, prog_bar=True)
         return accuracy

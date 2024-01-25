@@ -2,12 +2,9 @@ import torch
 from torchmetrics.classification import BinaryAccuracy
 import torch.nn as nn
 
-def accuracy(actions, targets):
-    return BinaryAccuracy()(actions, targets)
+def accuracy(inputs, targets):
+    return BinaryAccuracy()(inputs, targets)
 
-## Valid?
-# def binary_crossentropy(actions, probs, targets):
-#     return nn.functional.binary_crossentropy(probs, targets)
 
 def excess_reward(actions, trajectories, batch_average=True):
     not_chosen_actions = 1 - actions
