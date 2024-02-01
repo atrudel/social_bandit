@@ -1,4 +1,6 @@
 import argparse
+import subprocess
+import sys
 
 from torch.utils.data import DataLoader
 from lightning import Trainer
@@ -6,6 +8,7 @@ from lightning import Trainer
 from RNN import RNN
 from config import DEVICE, DATA_DIR
 from data_generator import BanditDataset
+
 
 parser = argparse.ArgumentParser(description="Training of RNN model.")
 
@@ -16,17 +19,19 @@ parser.add_argument('--inequity', type=float, default=0, help='Hyperparameter fo
 parser.add_argument('--batch_size', type=int, default=1000, help='Batch size')
 parser.add_argument('--epochs', type=int, default=200, help='Number of training epochs')
 parser.add_argument('--data_dir', type=str, default=DATA_DIR, help='Directory that contains the bandit trajectory data files.')
-parser.add_argument('--commit', type=str, default=None, help='current commit hash of the code being run')
 parser.add_argument('--debug', action='store_true', help='debug mode')
 
 
 def launch_training(args: argparse.Namespace):
+    commit = check_git_status() if not args.debug else None
+    print(commit)
+
     model = RNN(
         learning_rate=args.lr,
         hidden_size=args.hidden_size,
         num_layers=args.n_layers,
         inequity_sensitivity=args.inequity,
-        commit=args.commit
+        commit=commit
     )
 
     train_data = BanditDataset('train', args.data_dir)
@@ -43,6 +48,23 @@ def launch_training(args: argparse.Namespace):
     )
     trainer.fit(model, train_dataloader, val_dataloader)
 
+def check_git_status():
+    # Check that the git working tree is clean otherwise exit the program
+    git_status_output = subprocess.check_output(
+        "git status --porcelain --untracked-files=no",
+        shell=True, text=True
+    )
+    if git_status_output.strip():
+        print("\033[31mCOMMIT all your changes before you run the training script.\033[0m")
+        sys.exit(1)
+
+    # Get the short commit hash
+    commit_hash = subprocess.check_output(
+        "git rev-parse --short=7 HEAD",
+        shell=True,
+        text=True
+    ).strip()
+    return commit_hash
 
 
 if __name__ == '__main__':
