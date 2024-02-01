@@ -12,6 +12,7 @@ parser = argparse.ArgumentParser(description="Training of RNN model.")
 parser.add_argument('--lr', type=float, default=1e-3, help='Learning rate')
 parser.add_argument('--hidden_size', type=int, default=128, help='Number of RNN hidden units')
 parser.add_argument('--n_layers', type=int, default=2, help='Number of RNN layers')
+parser.add_argument('--inequity', type=float, default=0, help='Hyperparameter for sensitivity to inequity in the loss')
 parser.add_argument('--batch_size', type=int, default=1000, help='Batch size')
 parser.add_argument('--epochs', type=int, default=200, help='Number of training epochs')
 parser.add_argument('--data_dir', type=str, default=DATA_DIR, help='Directory that contains the bandit trajectory data files.')
@@ -20,7 +21,13 @@ parser.add_argument('--debug', action='store_true', help='debug mode')
 
 
 def launch_training(args: argparse.Namespace):
-    model = RNN(args.lr, args.hidden_size, args.n_layers, commit=args.commit)
+    model = RNN(
+        learning_rate=args.lr,
+        hidden_size=args.hidden_size,
+        num_layers=args.n_layers,
+        inequity_sensitivity=args.inequity,
+        commit=args.commit
+    )
 
     train_data = BanditDataset('train', args.data_dir)
     val_data = BanditDataset('val', args.data_dir)

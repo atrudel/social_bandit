@@ -12,17 +12,18 @@ from metrics import accuracy, excess_reward
 
 class RNN(L.LightningModule):
     def __init__(self,
-             learning_rate: float,
-             hidden_size: int,
-             num_layers: int,
-             commit: str = None,
-             first_choice: int = 0  # Action to always choose on first trial (0 or 1)
-             ):
+                 learning_rate: float,
+                 hidden_size: int,
+                 num_layers: int,
+                 inequity_sensitivity: float = 0.5,
+                 commit: str = None,
+                 first_choice: int = 0):
         super(RNN, self).__init__()
         self.save_hyperparameters()
         self.automatic_optimization = False
         self.first_choice = first_choice
         self.first_prob = 0.5
+        self.inequity_sensitivity = inequity_sensitivity
 
         self.rnn = nn.RNN(
             input_size=2,
@@ -104,11 +105,21 @@ class RNN(L.LightningModule):
         return reward
 
     def criterion(self, rewards, probs, actions):
+        loss = self._reward_maximization_objective(actions, rewards, probs) + \
+               self.inequity_sensitivity * self._equity_maximization_objective(actions)
+        return loss
+
+    def _reward_maximization_objective(self, actions, probs, rewards):
         mean_rewards = rewards.mean(dim=1).unsqueeze(1)
         deltas = rewards - mean_rewards
         corrected_probs = probs * actions + (1 - probs) * (1 - actions)
         losses = -deltas * corrected_probs
         return losses.sum()
+
+    def _equity_maximization_objective(self, actions):
+        seq_len = actions.shape[1]
+        inequity = torch.square(actions.sum(dim=1) - seq_len / 2)
+        return inequity.sum()
 
     def validation_step(self, batch, batch_idx):
         self.eval()
