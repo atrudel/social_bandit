@@ -90,11 +90,13 @@ class BanditGenerator:
                  epimin=EPIMIN,
                  epimax=EPIMAX,
                  nepi=NEPI,
-                 seed=None):
+                 seed=None,
+                 verbose=True):
         self.episode_generator = EpisodeGenerator(min_length=epimin, max_length=epimax, tau_fluc=tau_fluc, seed=seed)
         self.tau_samp = tau_samp
         self.nepi = nepi
         self.seed = seed
+        self.verbose = verbose
 
     def generate_batch(self, batch_size, length=SEQUENCE_LENGTH):
         # Generate 'batch_size' pairs of bandit trajectories
@@ -105,7 +107,10 @@ class BanditGenerator:
 
     def _generate_latent_means(self, length: int, batch_size: int):
         trajectories = np.array([self._generate_trajectory(length, self.nepi)
-                                 for _ in tqdm(range(batch_size * 2), desc="Generating trajectories")])
+                                 for _ in tqdm(range(batch_size * 2),
+                                               desc="Generating trajectories",
+                                               disable=not self.verbose)
+                                 ])
         # Arrange bandits by pairs
         paired_trajectories = trajectories.reshape(batch_size, 2, length)
         # Flip Bandit no 2 for every sequence  # Todo check this is necessary

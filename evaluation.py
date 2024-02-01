@@ -38,7 +38,7 @@ def quantitative_eval(model):
     plt.title("Distribution of excess rewards on episodes of test set")
     plt.show()
 
-def uncertainty_generalization_eval(model, seed=None, batch_size=10):
+def uncertainty_generalization_eval(model, seed=None, bins=8, batch_size=100):
     def plot_heatmap(data):
         quantity: str = list(data)[-1]
         sns.heatmap(
@@ -48,14 +48,15 @@ def uncertainty_generalization_eval(model, seed=None, batch_size=10):
         )
 
     model.eval()
-    tau_flucs = np.linspace(1, 3, num=10)
-    tau_samps = np.linspace(0, 3, num=10)
+    tau_flucs = np.linspace(1, 5, num=bins)
+    tau_samps = np.linspace(0, 4, num=bins)
     accuracies = pd.DataFrame(columns=['tau_fluc', 'tau_samp', 'accuracy'])
     excess_rewards = pd.DataFrame(columns=['tau_fluc', 'tau_samp', 'excess_reward'])
 
-    for tau_fluc in tqdm(tau_flucs):
+    progress_bar = tqdm(total=bins**2, desc=f'Generating evaluation sets of size {batch_size}')
+    for tau_fluc in tau_flucs:
         for tau_samp in tau_samps:
-            data_generator = BanditGenerator(tau_fluc, tau_samp, seed)
+            data_generator = BanditGenerator(tau_fluc=tau_fluc, tau_samp=tau_samp, seed=seed, verbose=False)
             means, values = data_generator.generate_batch(batch_size=batch_size, length=SEQUENCE_LENGTH)
             dataset = BanditDataset(values=values, means=means)
             dataloader = DataLoader(dataset, batch_size=batch_size)
@@ -74,6 +75,7 @@ def uncertainty_generalization_eval(model, seed=None, batch_size=10):
                 'tau_samp': tau_samp,
                 'excess_reward': excess_reward(actions, trajectories).item()
             })
+            progress_bar.update(1)
     plot_heatmap(accuracies)
     plt.title("Accuracies")
     plt.show()
@@ -115,17 +117,17 @@ def repeat_probability_eval(model):
     plt.xlabel('Reward of last action')
 
     # Fit a logistic function
-    def logistic_function(x, x0, k, off):
-        return 1 / (1 + np.exp(-k * (x - x0))) + off
+    def logistic_function(x, x0, k):
+        return 1 / (1 + np.exp(-k * (x - x0)))
 
     params, _ = curve_fit(logistic_function,
                            probs_by_bin['reward'].values.astype(np.float64),
                            probs_by_bin['repeat'].values.astype(np.float64),
-                           p0=[POINTS_PER_TURN / 2, 1, 0.1])
+                           p0=[POINTS_PER_TURN / 2, 1])
     x_curve = np.linspace(0, POINTS_PER_TURN, num=100)
     y_curve = logistic_function(x_curve, *params)
     plt.plot(x_curve, y_curve,
-             label=f"Fitted curve: f(x) = 1 / (1 + exp(-{params[1]:.2f} * (x - {params[0]:.2f})) + {params[2]:.2f}"
+             label=f"Fitted curve: f(x) = 1 / (1 + exp(-{params[1]:.2f} * (x - {params[0]:.2f}))"
              )
     plt.legend()
     plt.show()
