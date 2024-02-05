@@ -105,21 +105,24 @@ class RNN(L.LightningModule):
         return reward
 
     def criterion(self, rewards, probs, actions):
-        loss = self._reward_maximization_objective(actions, rewards, probs) + \
+        loss = self._reward_maximization_objective(rewards, probs, actions) + \
                self.inequity_sensitivity * self._equity_maximization_objective(actions)
         return loss
 
-    def _reward_maximization_objective(self, actions, probs, rewards):
+    def _reward_maximization_objective(self, rewards, probs, actions):
         mean_rewards = rewards.mean(dim=1).unsqueeze(1)
         deltas = rewards - mean_rewards
         corrected_probs = probs * actions + (1 - probs) * (1 - actions)
         losses = -deltas * corrected_probs
-        return losses.sum()
+        loss = losses.sum(1).mean()
+        return loss
 
     def _equity_maximization_objective(self, actions):
+        SCALING_FACTOR = 1 / 20
         seq_len = actions.shape[1]
         inequity = torch.square(actions.sum(dim=1) - seq_len / 2)
-        return inequity.sum()
+        loss = inequity.mean() * SCALING_FACTOR
+        return loss
 
     def validation_step(self, batch, batch_idx):
         self.eval()
