@@ -1,6 +1,7 @@
 import argparse
 import subprocess
 import sys
+from pathlib import Path
 
 from lightning.pytorch import Trainer, seed_everything
 from torch.utils.data import DataLoader
@@ -51,10 +52,13 @@ def launch_training(args: argparse.Namespace):
         max_epochs=args.epochs,
         accelerator=DEVICE,
         fast_dev_run=True if args.debug else False,
-        logger=False if args.debug else True,
+        logger=True,
         deterministic=True
     )
     trainer.fit(model, train_dataloader, val_dataloader)
+
+    # Create a git tag on the current commit with the version name
+    tag_version_in_git(trainer)
     return model
 
 
@@ -75,6 +79,23 @@ def check_git_status():
         text=True
     ).strip()
     return commit_hash
+
+def tag_version_in_git(trainer: Trainer):
+    logs_folder = None
+    for callback in trainer.callbacks:
+        from lightning.pytorch.callbacks import ModelCheckpoint
+        if isinstance(callback, ModelCheckpoint):
+            logs_folder = callback.dirpath
+            break
+    if logs_folder is not None:
+        version_name = Path(logs_folder).parts[-2]
+        try:
+            subprocess.run(["git", "tag", version_name], check=True)
+            print(version_name)
+        except subprocess.CalledProcessError as e:
+            print(f"Unable to create git tag with version name: {e}")
+    else:
+        print("Unable to retrieve version name")
 
 
 if __name__ == '__main__':

@@ -18,7 +18,7 @@ from metrics import accuracy, excess_reward
 
 parser = argparse.ArgumentParser(description="Evaluation of model.")
 parser.add_argument('--model_dir', type=str, required=True, help='Directory where the model checkpoint is located.')
-parser.add_argument('--seed',  type=int, default=42, help='Random state to use for reproducibility')
+parser.add_argument('--seed',  type=int, default=1, help='Random state to use for reproducibility')
 
 
 def quantitative_eval(model):
@@ -132,10 +132,11 @@ def repeat_probability_eval(model):
     plt.legend()
     plt.show()
 
-def evaluate(model: RNN, seed):
+def evaluate(model: RNN, seed, quick=False):
     model.eval()
     quantitative_eval(model)
-    uncertainty_generalization_eval(model, seed)
+    if not quick:
+        uncertainty_generalization_eval(model, seed)
     repeat_probability_eval(model)
 
 
