@@ -17,10 +17,12 @@ class RNN(L.LightningModule):
                  num_layers: int,
                  inequity_sensitivity: float = 0.5,
                  commit: str = None,
+                 seed: int = None,
                  first_choice: int = 0):
         super(RNN, self).__init__()
         self.save_hyperparameters()
         self.automatic_optimization = False
+        self.learning_rate = learning_rate
         self.first_choice = first_choice
         self.first_prob = 0.5
         self.inequity_sensitivity = inequity_sensitivity
@@ -145,7 +147,7 @@ class RNN(L.LightningModule):
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(
             self.parameters(),
-            lr=self.hparams.learning_rate
+            lr=self.learning_rate
         )
         return optimizer
 
