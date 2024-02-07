@@ -11,21 +11,21 @@ from metrics import accuracy, excess_reward
 
 
 class RNN(L.LightningModule):
-    def __init__(self,
-                 learning_rate: float,
+    def __init__(self, learning_rate: float,
                  hidden_size: int,
                  num_layers: int,
-                 inequity_sensitivity: float = 0.5,
+                 reward_loss_coef: float,
+                 equity_loss_coef: float,
                  commit: str = None,
-                 seed: int = None,
-                 first_choice: int = 0):
+                 seed: int = None, first_choice: int = 0):
         super(RNN, self).__init__()
         self.save_hyperparameters()
         self.automatic_optimization = False
         self.learning_rate = learning_rate
         self.first_choice = first_choice
         self.first_prob = 0.5
-        self.inequity_sensitivity = inequity_sensitivity
+        self.reward_loss_coef = reward_loss_coef
+        self.equity_loss_coef = equity_loss_coef
 
         self.rnn = nn.RNN(
             input_size=2,
@@ -50,11 +50,15 @@ class RNN(L.LightningModule):
         # Compute loss on sequence and optimize
         opt = self.optimizers()
         opt.zero_grad()
-        loss = self.criterion(rewards, probs, actions)
+        loss, (reward_loss, equity_loss) = self.criterion(rewards, probs, actions)
         self.manual_backward(loss)
         opt.step()
 
-        self.log('train_loss', loss.item(), prog_bar=True)
+        self.log_dict({
+            'train_loss': loss.item(),
+            'train_loss_reward': reward_loss.item(),
+            'train_loss_equity': equity_loss.item()
+        }, prog_bar=True)
         return loss
 
     def process_trajectory(self, batch):
@@ -107,9 +111,11 @@ class RNN(L.LightningModule):
         return reward
 
     def criterion(self, rewards, probs, actions):
-        loss = self._reward_maximization_objective(rewards, probs, actions) + \
-               self.inequity_sensitivity * self._equity_maximization_objective(actions)
-        return loss
+        reward_loss = self._reward_maximization_objective(rewards, probs, actions)
+        equity_loss = self._equity_maximization_objective(actions)
+        loss = self.reward_loss_coef * reward_loss + \
+               self.equity_loss_coef * equity_loss
+        return loss, (reward_loss, equity_loss)
 
     def _reward_maximization_objective(self, rewards, probs, actions):
         mean_rewards = rewards.mean(dim=1).unsqueeze(1)
@@ -131,13 +137,15 @@ class RNN(L.LightningModule):
         with torch.no_grad():
             actions, probs, rewards, targets, trajectories = self.process_trajectory(batch)
 
-        loss = self.criterion(rewards, probs, actions)
+        loss, (reward_loss, equity_loss) = self.criterion(rewards, probs, actions)
         softmax_accuracy = accuracy(actions, targets) # Accuracy based on the sampled actions
         argmax_accuracy = accuracy(probs, targets) # Accuracy based on the output probabilities
         excess_rwd = excess_reward(actions, trajectories)
 
         self.log_dict({
             'val_loss': loss.item(),
+            'val_loss_reward': reward_loss.item(),
+            'val_loss_equity': equity_loss.item(),
             'val_accuracy_softmax': softmax_accuracy.item(),
             'val_accuracy_argmax': argmax_accuracy.item(),
             'val_excess_rwd': excess_rwd.item()

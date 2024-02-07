@@ -15,7 +15,8 @@ parser = argparse.ArgumentParser(description="Training of RNN model.")
 parser.add_argument('--lr', type=float, default=1e-3, help='Learning rate')
 parser.add_argument('--hidden_size', type=int, default=128, help='Number of RNN hidden units')
 parser.add_argument('--n_layers', type=int, default=2, help='Number of RNN layers')
-parser.add_argument('--inequity', type=float, default=0, help='Hyperparameter for sensitivity to inequity in the loss')
+parser.add_argument('--reward_loss', type=float, default=1, help='Coefficient of the reward maximizing objective in the overall loss function.')
+parser.add_argument('--equity_loss', type=float, default=0, help='Coefficient of the equity maximization objective in the overall loss function.')
 parser.add_argument('--batch_size', type=int, default=1000, help='Batch size')
 parser.add_argument('--epochs', type=int, default=200, help='Number of training epochs')
 parser.add_argument('--data_dir', type=str, default=DATA_DIR, help='Directory that contains the bandit trajectory data files.')
@@ -38,14 +39,13 @@ def launch_training(args: argparse.Namespace):
     val_dataloader = DataLoader(val_data, batch_size=args.batch_size)
 
     # Instantiate model
-    model = RNN(
-        learning_rate=args.lr,
-        hidden_size=args.hidden_size,
-        num_layers=args.n_layers,
-        inequity_sensitivity=args.inequity,
-        commit=commit,
-        seed=args.seed
-    )
+    model = RNN(learning_rate=args.lr,
+                hidden_size=args.hidden_size,
+                num_layers=args.n_layers,
+                reward_loss_coef=args.reward_loss,
+                equity_loss_coef=args.equity_loss,
+                commit=commit,
+                seed=args.seed)
 
     # Train model
     trainer = Trainer(
