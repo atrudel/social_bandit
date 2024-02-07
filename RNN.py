@@ -126,7 +126,7 @@ class RNN(L.LightningModule):
         return loss
 
     def _equity_maximization_objective(self, actions):
-        SCALING_FACTOR = 1 / 20
+        SCALING_FACTOR = 1 / 40
         seq_len = actions.shape[1]
         inequity = torch.square(actions.sum(dim=1) - seq_len / 2)
         loss = inequity.mean() * SCALING_FACTOR
