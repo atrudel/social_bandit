@@ -117,17 +117,16 @@ def repeat_probability_eval(model):
     plt.xlabel('Reward of last action')
 
     # Fit a logistic function
-    def logistic_function(x, x0, k):
-        return 1 / (1 + np.exp(-k * (x - x0)))
+    def logistic_function(x, b0, b1, baseline):
+        return baseline + (1 - baseline) / (1 + np.exp(-(b0 + b1 * x)))
 
     params, _ = curve_fit(logistic_function,
                            probs_by_bin['reward'].values.astype(np.float64),
-                           probs_by_bin['repeat'].values.astype(np.float64),
-                           p0=[POINTS_PER_TURN / 2, 1])
+                           probs_by_bin['repeat'].values.astype(np.float64))
     x_curve = np.linspace(0, POINTS_PER_TURN, num=100)
     y_curve = logistic_function(x_curve, *params)
     plt.plot(x_curve, y_curve,
-             label=f"Fitted curve: f(x) = 1 / (1 + exp(-{params[1]:.2f} * (x - {params[0]:.2f}))"
+             label=f"Fitted curve: f(x) = {params[2]:.2f} + {1-params[2]:.2f} / (1 + exp(-({params[0]:.2f} + {params[1]:.2f} * x))"
              )
     plt.legend()
     plt.show()
