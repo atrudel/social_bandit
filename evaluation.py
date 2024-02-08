@@ -10,8 +10,9 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from RNN import RNN
-from config import POINTS_PER_TURN, SEQUENCE_LENGTH, DATA_DIR
-from data_generator import BanditGenerator, BanditDataset
+from config import POINTS_PER_TURN, SEQUENCE_LENGTH, DATA_DIR, GENERALIZATION_TAU_FLUCS, GENERALIZATION_TAU_SAMPS
+from data_generator import BanditGenerator
+from dataset import BanditDataset
 from metrics import accuracy, excess_reward, inequity
 
 parser = argparse.ArgumentParser(description="Evaluation of model.")
@@ -21,7 +22,7 @@ parser.add_argument('--seed',  type=int, default=1, help='Random state to use fo
 
 def quantitative_eval(model):
     model.eval()
-    test_set = BanditDataset('test', DATA_DIR)  # Todo: handle this better
+    test_set = BanditDataset.load(name='test', directory=DATA_DIR)
     test_dataloader = DataLoader(test_set, batch_size=len(test_set))
     batch = list(test_dataloader)[0]
 
@@ -69,17 +70,15 @@ def uncertainty_generalization_eval(model, seed=None, bins=8, batch_size=100):
         )
 
     model.eval()
-    tau_flucs = np.linspace(1, 5, num=bins)
-    tau_samps = np.linspace(0, 4, num=bins)
+    np.random.seed(seed)
     accuracies = pd.DataFrame(columns=['tau_fluc', 'tau_samp', 'accuracy'])
     excess_rewards = pd.DataFrame(columns=['tau_fluc', 'tau_samp', 'excess_reward'])
 
     progress_bar = tqdm(total=bins**2, desc=f'Generating evaluation sets of size {batch_size}')
-    for tau_fluc in tau_flucs:
-        for tau_samp in tau_samps:
-            data_generator = BanditGenerator(tau_fluc=tau_fluc, tau_samp=tau_samp, seed=seed, verbose=False)
-            means, values = data_generator.generate_batch(batch_size=batch_size, length=SEQUENCE_LENGTH)
-            dataset = BanditDataset(values=values, means=means)
+    for tau_fluc in GENERALIZATION_TAU_FLUCS:
+        for tau_samp in GENERALIZATION_TAU_SAMPS:
+            data_generator = BanditGenerator(tau_fluc=tau_fluc, tau_samp=tau_samp, verbose=False)
+            dataset = data_generator.generate_dataset(size=batch_size, length=SEQUENCE_LENGTH)
             dataloader = DataLoader(dataset, batch_size=batch_size)
             batch = list(dataloader)[0]
 
@@ -110,7 +109,7 @@ def repeat_probability_eval(model):
 
     model.eval()
     # Load test dataset
-    test_set = BanditDataset('test', DATA_DIR)  # Todo: handle this better
+    test_set = BanditDataset.load(name='test', directory=DATA_DIR)
     test_dataloader = DataLoader(test_set, batch_size=len(test_set))
     batch = list(test_dataloader)[0]
 

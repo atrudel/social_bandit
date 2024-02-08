@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader
 
 from RNN import RNN
 from config import DEVICE, DATA_DIR
-from data_generator import BanditDataset
+from dataset import BanditDataset
 
 parser = argparse.ArgumentParser(description="Training of RNN model.")
 
@@ -32,8 +32,8 @@ def launch_training(args: argparse.Namespace):
     seed_everything(args.seed, workers=True)
 
     # Load datasets
-    train_data = BanditDataset('train', args.data_dir)
-    val_data = BanditDataset('val', args.data_dir)
+    train_data = BanditDataset.load(name='train', directory=args.data_dir)
+    val_data = BanditDataset.load(name='val', directory=args.data_dir)
 
     train_dataloader = DataLoader(train_data, batch_size=args.batch_size, shuffle=True)
     val_dataloader = DataLoader(val_data, batch_size=args.batch_size)

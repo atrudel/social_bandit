@@ -1,15 +1,15 @@
 import argparse
 import math
 import os
-from pathlib import Path
 
 import numpy as np
-from matplotlib import pyplot as plt
 from scipy.stats import beta
-from torch.utils.data import Dataset
+from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from config import SEQUENCE_LENGTH, TAU_FLUC, TAU_SAMP, EPIMIN, EPIMAX, NEPI, DATA_DIR
+from config import SEQUENCE_LENGTH, TAU_FLUC, TAU_SAMP, EPIMIN, EPIMAX, NEPI, DATA_DIR, GENERALIZATION_TAU_FLUCS, \
+    GENERALIZATION_TAU_SAMPS, GENERALIZATION_SET_SIZE
+from dataset import BanditDataset
 
 parser = argparse.ArgumentParser(description="Generation of Bandit trajectories.")
 
@@ -33,31 +33,13 @@ def beta_sample(p, t):
 
 
 class EpisodeGenerator:
-    def __init__(self, min_length, max_length, tau_fluc, seed=None):
+    def __init__(self, min_length, max_length, tau_fluc):
         self.min_length = min_length
         self.max_length = max_length
         self.tau_fluc = tau_fluc
-        self.seed = seed
         self.episodes = None
 
-    def reset(self, episode_pool_size):
-        # self.episodes = self._generate_episodes(episode_pool_size)
-        pass
-
-    def sample_episodes(self, n):
-        # if self.episodes is None:
-        #     raise RuntimeError("Call the reset() method on EpisodeGenerator before you call sample_episodes().")
-        # idxs = np.random.choice(len(self.episodes), size=n)
-        # return [self.episodes[i] for i in idxs]
-        return self._generate_episodes(n)
-
     def _generate_episodes(self, number):
-        if self.seed is not None:
-            np.random.seed(self.seed)
-            self.seed += 1
-        # episodes = []
-        # for _ in tqdm(range(number), desc='Generating episodes'):
-        #     episodes.append(self._generate_episode(self.min_length, self.max_length))
         episodes = [self._generate_episode(self.min_length, self.max_length) for _ in range(number)]
         return episodes
 
@@ -90,20 +72,18 @@ class BanditGenerator:
                  epimin=EPIMIN,
                  epimax=EPIMAX,
                  nepi=NEPI,
-                 seed=None,
                  verbose=True):
-        self.episode_generator = EpisodeGenerator(min_length=epimin, max_length=epimax, tau_fluc=tau_fluc, seed=seed)
+        self.episode_generator = EpisodeGenerator(min_length=epimin, max_length=epimax, tau_fluc=tau_fluc)
         self.tau_samp = tau_samp
         self.nepi = nepi
-        self.seed = seed
         self.verbose = verbose
 
-    def generate_batch(self, batch_size, length=SEQUENCE_LENGTH):
+    def generate_dataset(self, size, name=None, length=SEQUENCE_LENGTH) -> BanditDataset:
         # Generate 'batch_size' pairs of bandit trajectories
-        self.episode_generator.reset(episode_pool_size=batch_size * 10)
-        self.means = self._generate_latent_means(length, batch_size)
-        self.values = self._sample_values(self.means)
-        return (self.means, self.values)
+        means = self._generate_latent_means(length, size)
+        values = self._sample_values(means)
+        dataset = BanditDataset(means=means, values=values, name=name)
+        return dataset
 
     def _generate_latent_means(self, length: int, batch_size: int):
         trajectories = np.array([self._generate_trajectory(length, self.nepi)
@@ -113,14 +93,14 @@ class BanditGenerator:
                                  ])
         # Arrange bandits by pairs
         paired_trajectories = trajectories.reshape(batch_size, 2, length)
-        # Flip Bandit no 2 for every sequence  # Todo check this is necessary
+        # Flip Bandit no 2 for every sequence
         paired_trajectories[:, 1, :] = 1 - paired_trajectories[:, 1, :]
         return paired_trajectories
 
     def _generate_trajectory(self, length, num_episodes):
         trajectory = np.array([])
         while len(trajectory) < length:
-            episodes = self.episode_generator.sample_episodes(num_episodes)
+            episodes = self.episode_generator._generate_episodes(num_episodes)
             # Flip every odd-indexed episode so that it goes below 0.5
             for i in range(num_episodes):
                 if i % 2 == 1:
@@ -132,65 +112,36 @@ class BanditGenerator:
         values = beta_sample(means, self.tau_samp)
         return values
 
-
-class BanditDataset(Dataset):
-    def __init__(self, split: str = None, directory: str = DATA_DIR, values=None, means=None):
-        if values is None:
-            path = Path(directory)
-            self.values = np.load(path / f"{split}_values.npy").astype('float32')
-            self.means = np.load(path / f"{split}_means.npy").astype('float32')
-            print(f"Loaded {split} set located in {path}")
-        else:
-            self.values = values.astype('float32')
-            self.means = means.astype('float32')
-
-    def __len__(self):
-        return self.values.shape[0]
-
-    def __getitem__(self, item):
-        means = self.means[item]
-        values = self.values[item]
-        target = np.argmax(values, axis=0).astype('float32')
-        return means, values, target
-
-    def plot(self, item, comment=None):
-        means, values, target = self[item]
-        plt.plot(values[0], label="Bandit 0: values", color="tab:blue")
-        plt.plot(means[0], label="Bandit 0: latent mean", color="tab:cyan", linestyle="dotted")
-        plt.plot(values[1], label="Bandit 1: values", color="orange")
-        plt.plot(means[1], label="Bandit 1: latent mean", color="tan", linestyle="dotted")
-        plt.scatter(list(range(len(values[0]))), target, label="target")
-        plt.title(f"Bandit trajectories (no {item})" + (f" - {comment}" if comment is not None else ""))
-        plt.legend(bbox_to_anchor=(1, 0.5), loc="upper left")
-        plt.xlabel("Time step")
-        plt.ylabel("Reward")
-        plt.show()
+# def generate_uncertainty_generalization_datasets(size=GENERALIZATION_SET_SIZE):
+#     for tau_fluc in GENERALIZATION_TAU_FLUCS:
+#         for tau_samp in GENERALIZATION_TAU_SAMPS:
+#             data_generator = BanditGenerator(tau_fluc=tau_fluc, tau_samp=tau_samp, verbose=False)
+#             dataset = data_generator.generate_dataset(size=size, length=SEQUENCE_LENGTH)
+#             dataloader = DataLoader(dataset, batch_size=size)
+#             batch = list(dataloader)[0]
 
 
 if __name__ == '__main__':
     args = parser.parse_args()
 
+    np.random.seed(args.seed)
     generator = BanditGenerator(
         args.tau_fluc,
         args.tau_samp,
         args.epimin,
         args.epimax,
         args.nepi,
-        seed=args.seed
     )
-    train_means, train_values = generator.generate_batch(args.n_train, args.length)
+    train_dataset = generator.generate_dataset(args.n_train, name='train', length=args.length)
 
     if not args.debug:
-        data_dir = Path(DATA_DIR)
-        os.makedirs(data_dir, exist_ok=True)
+        os.makedirs(DATA_DIR, exist_ok=True)
 
-        val_means, val_values = generator.generate_batch(args.n_val, args.length)
-        test_means, test_values = generator.generate_batch(args.n_test, args.length)
+        val_dataset = generator.generate_dataset(args.n_val, name='val', length=args.length)
+        test_dataset = generator.generate_dataset(args.n_test, name='test', length=args.length)
 
-        np.save(data_dir / 'train_means', train_means)
-        np.save(data_dir / 'train_values', train_values)
-        np.save(data_dir / 'val_means', val_means)
-        np.save(data_dir / 'val_values', val_values)
-        np.save(data_dir / 'test_means', test_means)
-        np.save(data_dir / 'test_values', test_values)
+        train_dataset.save(DATA_DIR)
+        val_dataset.save(DATA_DIR)
+        test_dataset.save(DATA_DIR)
+
         print(f"Bandit trajectories generated. ({args.n_train} train, {args.n_val} val, {args.n_test} test, length={args.length})")

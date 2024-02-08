@@ -1,7 +1,7 @@
 import argparse
 import glob
 
-from data_generator import BanditDataset
+from dataset import BanditDataset
 from game.game import Game
 from game.partner import Partner
 from game.player import Player
@@ -20,7 +20,7 @@ parser.add_argument('--experiment_name', type=str,
 if __name__ == '__main__':
     args = parser.parse_args()
 
-    test_dataset = BanditDataset('test', args.data_dir)
+    test_dataset = BanditDataset.load(name='test', directory=args.data_dir)
 
     if args.trajectory_no is not None:
         _, bandit_trajectories, _ = test_dataset[args.trajectory_no]  # dims: batch, 2, length
