@@ -21,6 +21,7 @@ class RNN(L.LightningModule):
         super(RNN, self).__init__()
         self.save_hyperparameters()
         self.automatic_optimization = False
+        self.version = None
         self.learning_rate = learning_rate
         self.first_choice = first_choice
         self.first_prob = 0.5
@@ -167,5 +168,9 @@ class RNN(L.LightningModule):
             'checkpoints/*.ckpt'
         ))[-1]
         model = cls.load_from_checkpoint(checkpoint_path, map_location=DEVICE)
+        model.version = version
         print(f'Loading RNN ({version}) - checkpoint from {checkpoint_path}')
         return model
+
+    def __str__(self):
+        return f"RNN_{self.version}(rwd_loss={self.reward_loss_coef}, equity_loss={self.equity_loss_coef})"

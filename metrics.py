@@ -2,6 +2,9 @@ import torch
 from torchmetrics.classification import BinaryAccuracy
 import torch.nn as nn
 
+from config import SEQUENCE_LENGTH
+
+
 def accuracy(inputs, targets):
     return BinaryAccuracy()(inputs, targets)
 
@@ -14,3 +17,8 @@ def excess_reward(actions, trajectories, batch_average=True):
     if batch_average:
         excess_rewards = excess_rewards.mean()
     return excess_rewards.mean(-1)
+
+def inequity(actions):
+    sum_partner_1 = actions.sum(1)
+    inequities = sum_partner_1 - SEQUENCE_LENGTH / 2
+    return inequities

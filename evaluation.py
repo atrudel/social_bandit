@@ -14,10 +14,10 @@ from tqdm import tqdm
 from RNN import RNN
 from config import DEVICE, POINTS_PER_TURN, SEQUENCE_LENGTH, DATA_DIR
 from data_generator import BanditGenerator, BanditDataset
-from metrics import accuracy, excess_reward
+from metrics import accuracy, excess_reward, inequity
 
 parser = argparse.ArgumentParser(description="Evaluation of model.")
-parser.add_argument('--model_dir', type=str, required=True, help='Directory where the model checkpoint is located.')
+parser.add_argument('--version', type=str, required=True, help='Version name of the model to load')
 parser.add_argument('--seed',  type=int, default=1, help='Random state to use for reproducibility')
 
 
@@ -30,12 +30,35 @@ def quantitative_eval(model):
     actions, probs, rewards, targets, trajectories = model.process_trajectory(batch)
     acc = accuracy(actions, targets).item()
     excess_rwds = excess_reward(actions, trajectories, batch_average=False)
+    inequities = inequity(actions)
 
-    print("Avg. Accuracy on test set: ", acc)
-    print("Avg. Excess reward on test set: ", excess_rwds.mean().item())
+    mean_excess_rwd = excess_rwds.mean().item()
+    median_excess_rwd = excess_rwds.median().item()
+    mean_inequity = inequities.mean().item()
+    median_inequity = inequities.median().item()
+
+    print(f"Avg. Accuracy on test set: {acc:.3f}")
+    print(f"Avg. Excess reward on test set: {mean_excess_rwd:.3f}")
+    print(f"Avg. Inequity on test set: {mean_inequity:.3f}")
 
     plt.hist(excess_rwds.numpy(), bins=50)
-    plt.title("Distribution of excess rewards on episodes of test set")
+    plt.axvline(mean_excess_rwd, c='red', label=f"Mean: {median_excess_rwd:.2f}")
+    plt.axvline(median_excess_rwd, c='green', label=f"Median: {median_excess_rwd:.2f}")
+    plt.title(f"Distribution of excess rewards on episodes of test set\n{model}")
+    plt.xlim(xmin=-10, xmax=45)
+    plt.xlabel(f"Excess reward (out of {POINTS_PER_TURN})")
+    plt.ylabel(f"Frequency out of {len(test_set)} test episodes")
+    plt.legend()
+    plt.show()
+
+    plt.hist(inequities.numpy(), bins=40)
+    plt.axvline(mean_inequity, c='red', label=f"Mean: {mean_inequity:.2f}")
+    plt.axvline(median_inequity, c='green', label=f"Median: {median_inequity:.2f}")
+    plt.title(f"Distribution of inequities on episodes of test set\n{model}")
+    plt.xlim(xmin=-40, xmax=40)
+    plt.xlabel("Inequity (Partner 1 - Partner 0)")
+    plt.ylabel(f"Frequency out of {len(test_set)} test episodes")
+    plt.legend()
     plt.show()
 
 def uncertainty_generalization_eval(model, seed=None, bins=8, batch_size=100):
@@ -112,7 +135,7 @@ def repeat_probability_eval(model):
     plt.scatter(probs_by_bin['reward'], probs_by_bin['repeat'],
                 label=f'Probabilities by bins of {POINTS_PER_TURN/BINS} pts of reward'
                 )
-    plt.title('Probability of repeating any action given the reward it received')
+    plt.title(f'Probability of repeating any action given the reward it received\n{model}')
     plt.ylabel('Probability of repeating last action')
     plt.xlabel('Reward of last action')
 
@@ -120,14 +143,17 @@ def repeat_probability_eval(model):
     def logistic_function(x, b0, b1, baseline):
         return baseline + (1 - baseline) / (1 + np.exp(-(b0 + b1 * x)))
 
-    params, _ = curve_fit(logistic_function,
-                           probs_by_bin['reward'].values.astype(np.float64),
-                           probs_by_bin['repeat'].values.astype(np.float64))
-    x_curve = np.linspace(0, POINTS_PER_TURN, num=100)
-    y_curve = logistic_function(x_curve, *params)
-    plt.plot(x_curve, y_curve,
-             label=f"Fitted curve: f(x) = {params[2]:.2f} + {1-params[2]:.2f} / (1 + exp(-({params[0]:.2f} + {params[1]:.2f} * x))"
-             )
+    try:
+        params, _ = curve_fit(logistic_function,
+                               probs_by_bin['reward'].values.astype(np.float64),
+                               probs_by_bin['repeat'].values.astype(np.float64))
+        x_curve = np.linspace(0, POINTS_PER_TURN, num=100)
+        y_curve = logistic_function(x_curve, *params)
+        plt.plot(x_curve, y_curve,
+                 label=f"Fitted curve: f(x) = {params[2]:.2f} + {1-params[2]:.2f} / (1 + exp(-({params[0]:.2f} + {params[1]:.2f} * x))"
+                 )
+    except RuntimeError:
+        print("Unable to fit sigmoid curve")
     plt.legend()
     plt.show()
 
@@ -141,13 +167,6 @@ def evaluate(model: RNN, seed, quick=False):
 
 if __name__ == '__main__':
     args = parser.parse_args()
-    checkpoint_path = glob.glob(os.path.join(
-        args.model_dir,
-        'checkpoints/*.ckpt'
-    ))[-1]
-    print(f"Evaluating model with checkpoint {checkpoint_path}")
-
-    model = RNN.load_from_checkpoint(checkpoint_path, map_location=DEVICE)
-
+    model = RNN.load(args.version)
     evaluate(model, seed=args.seed)
 
