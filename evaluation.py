@@ -1,18 +1,16 @@
 import argparse
-import glob
-import os
 
 import numpy as np
 import pandas as pd
+import seaborn as sns
 import torch
 from matplotlib import pyplot as plt
 from scipy.optimize import curve_fit
 from torch.utils.data import DataLoader
-import seaborn as sns
 from tqdm import tqdm
 
 from RNN import RNN
-from config import DEVICE, POINTS_PER_TURN, SEQUENCE_LENGTH, DATA_DIR
+from config import POINTS_PER_TURN, SEQUENCE_LENGTH, DATA_DIR
 from data_generator import BanditGenerator, BanditDataset
 from metrics import accuracy, excess_reward, inequity
 
@@ -140,17 +138,18 @@ def repeat_probability_eval(model):
     plt.xlabel('Reward of last action')
 
     # Fit a logistic function
-    def logistic_function(x, b0, b1, baseline):
-        return baseline + (1 - baseline) / (1 + np.exp(-(b0 + b1 * x)))
+    def logistic_function(x, x0, a, baseline):
+        return baseline + (1 - baseline) / (1 + np.exp(-a * (x - x0)))
 
     try:
         params, _ = curve_fit(logistic_function,
                                probs_by_bin['reward'].values.astype(np.float64),
-                               probs_by_bin['repeat'].values.astype(np.float64))
+                               probs_by_bin['repeat'].values.astype(np.float64),
+                              p0=[50, 0.05, 0.3])
         x_curve = np.linspace(0, POINTS_PER_TURN, num=100)
         y_curve = logistic_function(x_curve, *params)
         plt.plot(x_curve, y_curve,
-                 label=f"Fitted curve: f(x) = {params[2]:.2f} + {1-params[2]:.2f} / (1 + exp(-({params[0]:.2f} + {params[1]:.2f} * x))"
+                 label=f"Fitted curve: f(x) = {params[2]:.2f} + {1-params[2]:.2f} / (1 + exp(-{params[1]:.2f}( x - {params[0]:.2f})))"
                  )
     except RuntimeError:
         print("Unable to fit sigmoid curve")
@@ -158,6 +157,7 @@ def repeat_probability_eval(model):
     plt.show()
 
 def evaluate(model: RNN, seed, quick=False):
+    torch.manual_seed(seed)
     model.eval()
     quantitative_eval(model)
     if not quick:
@@ -168,5 +168,5 @@ def evaluate(model: RNN, seed, quick=False):
 if __name__ == '__main__':
     args = parser.parse_args()
     model = RNN.load(args.version)
-    evaluate(model, seed=args.seed)
+    evaluate(model, seed=args.seed, quick=True)
 
