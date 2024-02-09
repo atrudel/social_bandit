@@ -1,10 +1,14 @@
+from __future__ import annotations
+
 import argparse
 import math
 import os
+import pickle
+from collections import defaultdict
+from pathlib import Path
 
 import numpy as np
 from scipy.stats import beta
-from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from config import SEQUENCE_LENGTH, TAU_FLUC, TAU_SAMP, EPIMIN, EPIMAX, NEPI, DATA_DIR, GENERALIZATION_TAU_FLUCS, \
@@ -112,13 +116,51 @@ class BanditGenerator:
         values = beta_sample(means, self.tau_samp)
         return values
 
-# def generate_uncertainty_generalization_datasets(size=GENERALIZATION_SET_SIZE):
-#     for tau_fluc in GENERALIZATION_TAU_FLUCS:
-#         for tau_samp in GENERALIZATION_TAU_SAMPS:
-#             data_generator = BanditGenerator(tau_fluc=tau_fluc, tau_samp=tau_samp, verbose=False)
-#             dataset = data_generator.generate_dataset(size=size, length=SEQUENCE_LENGTH)
-#             dataloader = DataLoader(dataset, batch_size=size)
-#             batch = list(dataloader)[0]
+
+class GeneralizationDatasetBundle:
+    dump_filename = 'uncertainty_generalization.pickle'
+    def __init__(self, tau_flucs: np.ndarray, tau_samps: np.ndarray):
+        self.tau_flucs = tau_flucs
+        self.tau_samps = tau_samps
+        self.datasets = defaultdict(dict)
+
+    def generate_datasets(self, size: int) -> GeneralizationDatasetBundle:
+        progress_bar = tqdm(total=len(self.tau_flucs) * len(self.tau_samps),
+                            desc=f'Generating trajectories for evaluation sets')
+        for tau_fluc in self.tau_flucs:
+            for tau_samp in self.tau_samps:
+                data_generator = BanditGenerator(tau_fluc=tau_fluc, tau_samp=tau_samp, verbose=False)
+                dataset: BanditDataset = data_generator.generate_dataset(size=size,
+                                                                         name=self._format_filename(tau_fluc, tau_samp),
+                                                                         length=SEQUENCE_LENGTH)
+                self.datasets[tau_fluc][tau_samp] = dataset
+                progress_bar.update(1)
+        return self
+
+    def get(self, tau_fluc: float, tau_samp: float) -> BanditDataset:
+        return self.datasets[tau_fluc][tau_samp]
+
+    def save(self, directory: str = DATA_DIR) -> None:
+        save_dir = Path(directory) / self.dump_filename
+        if not self.datasets:
+            raise Exception("GeneralizationDatasetBundle error: you must generate datasets before saving them.")
+
+        with open(save_dir, 'wb') as f:
+            pickle.dump(self, f)
+
+    @classmethod
+    def load(cls, directory: str = DATA_DIR) -> GeneralizationDatasetBundle:
+        with open(Path(directory) / cls.dump_filename, 'rb') as f:
+            return pickle.load(f)
+
+    def __iter__(self):
+        for tau_fluc, samps in self.datasets.items():
+            for tau_samp, dataset in samps.items():
+                yield tau_fluc, tau_samp, dataset
+
+    def _format_filename(self, tau_fluc, tau_samp) -> str:
+        return f"tau_fluc={tau_fluc:.2g}__tau_samp={tau_samp:.2g}"
+
 
 
 if __name__ == '__main__':
@@ -137,11 +179,14 @@ if __name__ == '__main__':
     if not args.debug:
         os.makedirs(DATA_DIR, exist_ok=True)
 
-        val_dataset = generator.generate_dataset(args.n_val, name='val', length=args.length)
-        test_dataset = generator.generate_dataset(args.n_test, name='test', length=args.length)
+        val_dataset: BanditDataset = generator.generate_dataset(args.n_val, name='val', length=args.length)
+        test_dataset: BanditDataset = generator.generate_dataset(args.n_test, name='test', length=args.length)
+        uncertainty_generation_datasets = GeneralizationDatasetBundle(GENERALIZATION_TAU_FLUCS,
+                                                                      GENERALIZATION_TAU_SAMPS).generate_datasets(GENERALIZATION_SET_SIZE)
 
         train_dataset.save(DATA_DIR)
         val_dataset.save(DATA_DIR)
         test_dataset.save(DATA_DIR)
+        uncertainty_generation_datasets.save(DATA_DIR)
 
         print(f"Bandit trajectories generated. ({args.n_train} train, {args.n_val} val, {args.n_test} test, length={args.length})")

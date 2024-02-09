@@ -1,6 +1,7 @@
 .idea
 lightning_logs
 *.npy
+data
 
 
 # Byte-compiled / optimized / DLL files

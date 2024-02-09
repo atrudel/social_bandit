@@ -7,11 +7,10 @@ import torch
 from matplotlib import pyplot as plt
 from scipy.optimize import curve_fit
 from torch.utils.data import DataLoader
-from tqdm import tqdm
 
 from RNN import RNN
-from config import POINTS_PER_TURN, SEQUENCE_LENGTH, DATA_DIR, GENERALIZATION_TAU_FLUCS, GENERALIZATION_TAU_SAMPS
-from data_generator import BanditGenerator
+from config import POINTS_PER_TURN, DATA_DIR
+from data_generator import GeneralizationDatasetBundle
 from dataset import BanditDataset
 from metrics import accuracy, excess_reward, inequity
 
@@ -60,7 +59,7 @@ def quantitative_eval(model):
     plt.legend()
     plt.show()
 
-def uncertainty_generalization_eval(model, seed=None, bins=8, batch_size=100):
+def uncertainty_generalization_eval(model, seed=None):
     def plot_heatmap(data):
         quantity: str = list(data)[-1]
         sns.heatmap(
@@ -74,28 +73,25 @@ def uncertainty_generalization_eval(model, seed=None, bins=8, batch_size=100):
     accuracies = pd.DataFrame(columns=['tau_fluc', 'tau_samp', 'accuracy'])
     excess_rewards = pd.DataFrame(columns=['tau_fluc', 'tau_samp', 'excess_reward'])
 
-    progress_bar = tqdm(total=bins**2, desc=f'Generating evaluation sets of size {batch_size}')
-    for tau_fluc in GENERALIZATION_TAU_FLUCS:
-        for tau_samp in GENERALIZATION_TAU_SAMPS:
-            data_generator = BanditGenerator(tau_fluc=tau_fluc, tau_samp=tau_samp, verbose=False)
-            dataset = data_generator.generate_dataset(size=batch_size, length=SEQUENCE_LENGTH)
-            dataloader = DataLoader(dataset, batch_size=batch_size)
-            batch = list(dataloader)[0]
+    datasets = GeneralizationDatasetBundle.load(DATA_DIR)
+    for tau_fluc, tau_samp, dataset in datasets:
+        dataset = datasets.get(tau_fluc, tau_samp)
+        dataloader = DataLoader(dataset, batch_size=len(dataset))
+        batch = list(dataloader)[0]
 
-            with torch.no_grad():
-                actions, probs, rewards, targets, trajectories = model.process_trajectory(batch)
+        with torch.no_grad():
+            actions, probs, rewards, targets, trajectories = model.process_trajectory(batch)
 
-            accuracies.loc[len(accuracies)] = pd.Series({
-                'tau_fluc': tau_fluc,
-                'tau_samp': tau_samp,
-                'accuracy': accuracy(actions, targets).item()
-            })
-            excess_rewards.loc[len(excess_rewards)] = pd.Series({
-                'tau_fluc': tau_fluc,
-                'tau_samp': tau_samp,
-                'excess_reward': excess_reward(actions, trajectories).item()
-            })
-            progress_bar.update(1)
+        accuracies.loc[len(accuracies)] = pd.Series({
+            'tau_fluc': tau_fluc,
+            'tau_samp': tau_samp,
+            'accuracy': accuracy(actions, targets).item()
+        })
+        excess_rewards.loc[len(excess_rewards)] = pd.Series({
+            'tau_fluc': tau_fluc,
+            'tau_samp': tau_samp,
+            'excess_reward': excess_reward(actions, trajectories).item()
+        })
     plot_heatmap(accuracies)
     plt.title("Accuracies")
     plt.show()
@@ -155,12 +151,12 @@ def repeat_probability_eval(model):
     plt.legend()
     plt.show()
 
-def evaluate(model: RNN, seed, quick=False):
+
+def evaluate(model: RNN, seed):
     torch.manual_seed(seed)
     model.eval()
     quantitative_eval(model)
-    if not quick:
-        uncertainty_generalization_eval(model, seed)
+    uncertainty_generalization_eval(model, seed)
     repeat_probability_eval(model)
 
 
