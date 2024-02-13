@@ -58,7 +58,8 @@ def launch_training(args: argparse.Namespace):
     trainer.fit(model, train_dataloader, val_dataloader)
 
     # Create a git tag on the current commit with the version name
-    tag_version_in_git(trainer)
+    if not args.debug:
+        tag_version_in_git(trainer)
     return model
 
 
