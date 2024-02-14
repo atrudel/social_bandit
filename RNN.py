@@ -7,7 +7,7 @@ import torch.nn as nn
 from torchtyping import TensorType
 
 from config import MODEL_DIR, DEVICE
-from metrics import accuracy, excess_reward
+from metrics import accuracy, excess_reward, imbalance, inequity
 
 
 class RNN(L.LightningModule):
@@ -127,7 +127,7 @@ class RNN(L.LightningModule):
         return loss
 
     def _equity_maximization_objective(self, probs):
-        scaling_factor = 100
+        scaling_factor = 10
         inequity = torch.square(probs.mean(dim=1) - 0.5)
         loss = inequity.mean() * scaling_factor
         return loss
@@ -141,6 +141,7 @@ class RNN(L.LightningModule):
         softmax_accuracy = accuracy(actions, targets) # Accuracy based on the sampled actions
         argmax_accuracy = accuracy(probs, targets) # Accuracy based on the output probabilities
         excess_rwd = excess_reward(actions, trajectories)
+        inequ = inequity(actions, average=True)
 
         self.log_dict({
             'val_loss': loss.item(),
@@ -148,7 +149,8 @@ class RNN(L.LightningModule):
             'val_loss_equity': equity_loss.item(),
             'val_accuracy_softmax': softmax_accuracy.item(),
             'val_accuracy_argmax': argmax_accuracy.item(),
-            'val_excess_rwd': excess_rwd.item()
+            'val_excess_rwd': excess_rwd.item(),
+            'val_inequity': inequ.item()
         }, prog_bar=True)
         return accuracy
 

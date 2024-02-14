@@ -18,7 +18,16 @@ def excess_reward(actions, trajectories, batch_average=True):
         excess_rewards = excess_rewards.mean()
     return excess_rewards.mean(-1)
 
-def inequity(actions):
+def imbalance(actions):
     sum_partner_1 = actions.sum(1)
-    inequities = sum_partner_1 - SEQUENCE_LENGTH / 2
-    return inequities
+    imbalances = sum_partner_1 - SEQUENCE_LENGTH / 2
+    return imbalances
+
+def inequity(actions, average=False):
+    sum_partner_1 = actions.sum(1)
+    imbalances = sum_partner_1 - SEQUENCE_LENGTH / 2
+    inequitites = torch.abs(imbalances)
+    if average:
+        return inequitites.mean()
+    else:
+        return inequitites

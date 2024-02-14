@@ -12,7 +12,7 @@ from RNN import RNN
 from config import POINTS_PER_TURN, DATA_DIR
 from data_generator import GeneralizationDatasetBundle
 from dataset import BanditDataset
-from metrics import accuracy, excess_reward, inequity
+from metrics import accuracy, excess_reward, imbalance
 
 parser = argparse.ArgumentParser(description="Evaluation of model.")
 parser.add_argument('--version', type=str, required=True, help='Version name of the model to load')
@@ -28,16 +28,16 @@ def quantitative_eval(model):
     actions, probs, rewards, targets, trajectories = model.process_trajectory(batch)
     acc = accuracy(actions, targets).item()
     excess_rwds = excess_reward(actions, trajectories, batch_average=False)
-    inequities = inequity(actions)
+    imbalances = imbalance(actions)
 
     mean_excess_rwd = excess_rwds.mean().item()
     median_excess_rwd = excess_rwds.median().item()
-    mean_inequity = inequities.mean().item()
-    median_inequity = inequities.median().item()
+    mean_imbalance = imbalances.mean().item()
+    median_imbalance = imbalances.median().item()
 
     print(f"Avg. Accuracy on test set: {acc:.3f}")
     print(f"Avg. Excess reward on test set: {mean_excess_rwd:.3f}")
-    print(f"Avg. Inequity on test set: {mean_inequity:.3f}")
+    print(f"Avg. Imbalance on test set: {mean_imbalance:.3f}")
 
     plt.hist(excess_rwds.numpy(), bins=50)
     plt.axvline(mean_excess_rwd, c='red', label=f"Mean: {median_excess_rwd:.2f}")
@@ -49,12 +49,12 @@ def quantitative_eval(model):
     plt.legend()
     plt.show()
 
-    plt.hist(inequities.numpy(), bins=40)
-    plt.axvline(mean_inequity, c='red', label=f"Mean: {mean_inequity:.2f}")
-    plt.axvline(median_inequity, c='green', label=f"Median: {median_inequity:.2f}")
-    plt.title(f"Distribution of inequities on episodes of test set\n{model}")
+    plt.hist(imbalances.numpy(), bins=40)
+    plt.axvline(mean_imbalance, c='red', label=f"Mean: {mean_imbalance:.2f}")
+    plt.axvline(median_imbalance, c='green', label=f"Median: {median_imbalance:.2f}")
+    plt.title(f"Distribution of imbalance on episodes of test set\n{model}")
     plt.xlim(xmin=-40, xmax=40)
-    plt.xlabel("Inequity (Partner 1 - Partner 0)")
+    plt.xlabel("Action selection imbalance (Partner 1 - Partner 0)")
     plt.ylabel(f"Frequency out of {len(test_set)} test episodes")
     plt.legend()
     plt.show()
