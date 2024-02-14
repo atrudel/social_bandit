@@ -127,7 +127,7 @@ class RNN(L.LightningModule):
         return loss
 
     def _equity_maximization_objective(self, probs):
-        scaling_factor = 1000
+        scaling_factor = 10000
         inequity = torch.square(probs.mean(dim=1) - 0.5)
         loss = inequity.mean() * scaling_factor
         return loss

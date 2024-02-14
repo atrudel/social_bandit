@@ -42,7 +42,7 @@ class BanditDataset(Dataset):
         target = np.argmax(values, axis=0).astype('float32')
         return means, values, target
 
-    def plot(self, item, comment=None):
+    def plot(self, item, comment=None, show=True):
         means, values, target = self[item]
         plt.plot(values[0], label="Bandit 0: values", color="tab:blue")
         plt.plot(means[0], label="Bandit 0: latent mean", color="tab:cyan", linestyle="dotted")
@@ -53,7 +53,8 @@ class BanditDataset(Dataset):
         plt.legend(bbox_to_anchor=(1, 0.5), loc="upper left")
         plt.xlabel("Time step")
         plt.ylabel("Reward")
-        plt.show()
+        if show:
+            plt.show()
 
 
 if __name__ == '__main__':

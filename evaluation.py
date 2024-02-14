@@ -43,8 +43,8 @@ def quantitative_eval(model):
     plt.axvline(mean_excess_rwd, c='red', label=f"Mean: {median_excess_rwd:.2f}")
     plt.axvline(median_excess_rwd, c='green', label=f"Median: {median_excess_rwd:.2f}")
     plt.title(f"Distribution of excess rewards on episodes of test set\n{model}")
-    plt.xlim(xmin=-10, xmax=45)
-    plt.xlabel(f"Excess reward (out of {POINTS_PER_TURN})")
+    plt.xlim(xmin=-0.1, xmax=0.4)
+    plt.xlabel(f"Excess reward (with rewards between 0 and 1)")
     plt.ylabel(f"Frequency out of {len(test_set)} test episodes")
     plt.legend()
     plt.show()
@@ -53,7 +53,7 @@ def quantitative_eval(model):
     plt.axvline(mean_imbalance, c='red', label=f"Mean: {mean_imbalance:.2f}")
     plt.axvline(median_imbalance, c='green', label=f"Median: {median_imbalance:.2f}")
     plt.title(f"Distribution of imbalance on episodes of test set\n{model}")
-    plt.xlim(xmin=-40, xmax=40)
+    plt.xlim(xmin=-30, xmax=30)
     plt.xlabel("Action selection imbalance (Partner 1 - Partner 0)")
     plt.ylabel(f"Frequency out of {len(test_set)} test episodes")
     plt.legend()
@@ -116,7 +116,7 @@ def repeat_probability_eval(model):
 
     # Compute statistics
     rpts = repeats.flatten().numpy()
-    rwds = rewards[:, :-1].flatten().numpy() * POINTS_PER_TURN
+    rwds = rewards[:, :-1].flatten().numpy()
     data = pd.DataFrame({
         'reward': rwds,
         'repeat': rpts
@@ -126,7 +126,7 @@ def repeat_probability_eval(model):
 
     # Plot statistics by bins
     plt.scatter(probs_by_bin['reward'], probs_by_bin['repeat'],
-                label=f'Probabilities by bins of {POINTS_PER_TURN/BINS} pts of reward'
+                label=f'Probabilities by bins of {1/BINS:.2f} reward'
                 )
     plt.title(f'Probability of repeating any action given the reward it received\n{model}')
     plt.ylabel('Probability of repeating last action')
@@ -140,8 +140,8 @@ def repeat_probability_eval(model):
         params, _ = curve_fit(logistic_function,
                                probs_by_bin['reward'].values.astype(np.float64),
                                probs_by_bin['repeat'].values.astype(np.float64),
-                              p0=[50, 0.05, 0.3])
-        x_curve = np.linspace(0, POINTS_PER_TURN, num=100)
+                              p0=[0.5, 5, 0.3])
+        x_curve = np.linspace(0, 1, num=100)
         y_curve = logistic_function(x_curve, *params)
         plt.plot(x_curve, y_curve,
                  label=f"Fitted curve: f(x) = {params[2]:.2f} + {1-params[2]:.2f} / (1 + exp(-{params[1]:.2f}( x - {params[0]:.2f})))"
@@ -151,6 +151,21 @@ def repeat_probability_eval(model):
     plt.legend()
     plt.show()
 
+def visualize_play(model: RNN, idx: int = 0):
+    model.eval()
+    test_set = BanditDataset.load(name='test', directory=DATA_DIR)
+    test_dataloader = DataLoader(test_set, batch_size=len(test_set))
+    batch = list(test_dataloader)[0]
+
+    actions, probs, rewards, targets, trajectories = model.process_trajectory(batch)
+    actions_to_plot = actions[idx]
+    probs_to_plot = probs[idx].detach().numpy()
+    test_set.plot(idx, show=False)
+    plt.scatter(list(range(len(actions_to_plot))), actions_to_plot + 0.05,
+                label='Model actions', marker='+', c='red')
+    plt.plot(list(range(len(probs_to_plot))), probs_to_plot, c='red', label='Model output probability')
+    plt.legend(bbox_to_anchor=(1, 0.5), loc="upper left")
+    plt.show()
 
 def evaluate(model: RNN, seed):
     torch.manual_seed(seed)
