@@ -34,38 +34,47 @@ def quantitative_eval(model):
     median_excess_rwd = excess_rwds.median().item()
     mean_imbalance = imbalances.mean().item()
     median_imbalance = imbalances.median().item()
-
+    print(model)
+    print('-' * len(str(model)))
     print(f"Avg. Accuracy on test set: {acc:.3f}")
     print(f"Avg. Excess reward on test set: {mean_excess_rwd:.3f}")
     print(f"Avg. Imbalance on test set: {mean_imbalance:.3f}")
 
-    plt.hist(excess_rwds.numpy(), bins=50)
-    plt.axvline(mean_excess_rwd, c='red', label=f"Mean: {median_excess_rwd:.2f}")
-    plt.axvline(median_excess_rwd, c='green', label=f"Median: {median_excess_rwd:.2f}")
-    plt.title(f"Distribution of excess rewards on episodes of test set\n{model}")
-    plt.xlim(xmin=-0.1, xmax=0.4)
-    plt.xlabel(f"Excess reward (with rewards between 0 and 1)")
-    plt.ylabel(f"Frequency out of {len(test_set)} test episodes")
-    plt.legend()
+    fig, axs = plt.subplots(1, 2, figsize=(12, 6), sharey=True)
+
+    # Plot excess rewards histogram
+    axs[0].hist(excess_rwds.numpy(), bins=50)
+    axs[0].axvline(mean_excess_rwd, c='red', label=f"Mean: {median_excess_rwd:.2f}")
+    axs[0].axvline(median_excess_rwd, c='green', label=f"Median: {median_excess_rwd:.2f}")
+    axs[0].set_title(f"Distribution of excess rewards")
+    axs[0].set_xlim(xmin=-0.1, xmax=0.4)
+    axs[0].set_xlabel(f"Excess reward (with rewards between 0 and 1)")
+    axs[0].set_ylabel(f"Frequency out of {len(test_set)} test episodes")
+    axs[0].legend()
+
+    # Plot imbalances histogram
+    axs[1].hist(imbalances.numpy(), bins=40)
+    axs[1].axvline(mean_imbalance, c='red', label=f"Mean: {mean_imbalance:.2f}")
+    axs[1].axvline(median_imbalance, c='green', label=f"Median: {median_imbalance:.2f}")
+    axs[1].set_title(f"Distribution of imbalance")
+    axs[1].set_xlim(xmin=-30, xmax=30)
+    axs[1].set_xlabel("Action selection imbalance (Partner 1 - Partner 0)")
+    axs[1].set_ylabel(f"Frequency out of {len(test_set)} test episodes")
+    axs[1].legend()
+
+    plt.tight_layout()
     plt.show()
 
-    plt.hist(imbalances.numpy(), bins=40)
-    plt.axvline(mean_imbalance, c='red', label=f"Mean: {mean_imbalance:.2f}")
-    plt.axvline(median_imbalance, c='green', label=f"Median: {median_imbalance:.2f}")
-    plt.title(f"Distribution of imbalance on episodes of test set\n{model}")
-    plt.xlim(xmin=-30, xmax=30)
-    plt.xlabel("Action selection imbalance (Partner 1 - Partner 0)")
-    plt.ylabel(f"Frequency out of {len(test_set)} test episodes")
-    plt.legend()
-    plt.show()
+
 
 def uncertainty_generalization_eval(model, seed=None):
-    def plot_heatmap(data):
+    def plot_heatmap(data, ax):
         quantity: str = list(data)[-1]
         sns.heatmap(
             data=data.pivot(index='tau_samp', columns='tau_fluc', values=quantity).iloc[::-1],
-            cmap='Blues',
-            fmt=".2e"
+            fmt='.2f',
+            ax=ax,
+            cmap='Blues'
         )
 
     model.eval()
@@ -83,21 +92,23 @@ def uncertainty_generalization_eval(model, seed=None):
             actions, probs, rewards, targets, trajectories = model.process_trajectory(batch)
 
         accuracies.loc[len(accuracies)] = pd.Series({
-            'tau_fluc': tau_fluc,
-            'tau_samp': tau_samp,
+            'tau_fluc': np.round(tau_fluc, 2),
+            'tau_samp': np.round(tau_samp, 2),
             'accuracy': accuracy(actions, targets).item()
         })
         excess_rewards.loc[len(excess_rewards)] = pd.Series({
-            'tau_fluc': tau_fluc,
-            'tau_samp': tau_samp,
+            'tau_fluc': np.round(tau_fluc, 2),
+            'tau_samp': np.round(tau_samp, 2),
             'excess_reward': excess_reward(actions, trajectories).item()
         })
-    plot_heatmap(accuracies)
-    plt.title("Accuracies")
-    plt.show()
 
-    plot_heatmap(excess_rewards)
-    plt.title("Excess Reward")
+    fig, axs = plt.subplots(1, 2, figsize=(12, 6), sharey=True)
+    plot_heatmap(accuracies, axs[0])
+    axs[0].set_title("Accuracies")
+
+    plot_heatmap(excess_rewards, axs[1])
+    axs[1].set_title("Excess Reward")
+    plt.tight_layout()
     plt.show()
 
 def repeat_probability_eval(model):
@@ -173,6 +184,7 @@ def evaluate(model: RNN, seed):
     quantitative_eval(model)
     uncertainty_generalization_eval(model, seed)
     repeat_probability_eval(model)
+    visualize_play(model)
 
 
 if __name__ == '__main__':
