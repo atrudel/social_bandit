@@ -175,3 +175,6 @@ class RNN(L.LightningModule):
 
     def __str__(self):
         return f"RNN_{self.version}(rwd_loss={self.reward_loss_coef}, equity_loss={self.equity_loss_coef})"
+
+    def multiline_str(self):
+        return f"{self.version}\nrwd={self.reward_loss_coef}\nequ={self.equity_loss_coef}"

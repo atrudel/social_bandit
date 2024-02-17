@@ -1,4 +1,5 @@
 import argparse
+from typing import List
 
 import numpy as np
 import pandas as pd
@@ -18,8 +19,10 @@ parser = argparse.ArgumentParser(description="Evaluation of model.")
 parser.add_argument('--version', type=str, required=True, help='Version name of the model to load')
 parser.add_argument('--seed',  type=int, default=1, help='Random state to use for reproducibility')
 
+HIST_HEIGHT = 3
+HIST_WIDTH = 4
 
-def quantitative_eval(model):
+def quantitative_eval(model, show=True, axes=None):
     model.eval()
     test_set = BanditDataset.load(name='test', directory=DATA_DIR)
     test_dataloader = DataLoader(test_set, batch_size=len(test_set))
@@ -40,31 +43,42 @@ def quantitative_eval(model):
     print(f"Avg. Excess reward on test set: {mean_excess_rwd:.3f}")
     print(f"Avg. Imbalance on test set: {mean_imbalance:.3f}")
 
-    fig, axs = plt.subplots(1, 2, figsize=(12, 6), sharey=True)
+    if axes is None:
+        fig, axes = plt.subplots(1, 2, figsize=(12, 6), sharey=True)
 
     # Plot excess rewards histogram
-    axs[0].hist(excess_rwds.numpy(), bins=50)
-    axs[0].axvline(mean_excess_rwd, c='red', label=f"Mean: {median_excess_rwd:.2f}")
-    axs[0].axvline(median_excess_rwd, c='green', label=f"Median: {median_excess_rwd:.2f}")
-    axs[0].set_title(f"Distribution of excess rewards")
-    axs[0].set_xlim(xmin=-0.1, xmax=0.4)
-    axs[0].set_xlabel(f"Excess reward (with rewards between 0 and 1)")
-    axs[0].set_ylabel(f"Frequency out of {len(test_set)} test episodes")
-    axs[0].legend()
+    axes[0].hist(excess_rwds.numpy(), bins=50)
+    axes[0].axvline(mean_excess_rwd, c='red', label=f"Mean: {median_excess_rwd:.2f}")
+    axes[0].axvline(median_excess_rwd, c='green', label=f"Median: {median_excess_rwd:.2f}")
+    axes[0].set_title(f"Distribution of excess rewards")
+    axes[0].set_xlim(xmin=-0.1, xmax=0.4)
+    axes[0].set_xlabel(f"Excess reward")
+    axes[0].set_ylabel(f"Frequency (/{len(test_set)} episodes")
+    axes[0].legend()
 
     # Plot imbalances histogram
-    axs[1].hist(imbalances.numpy(), bins=40)
-    axs[1].axvline(mean_imbalance, c='red', label=f"Mean: {mean_imbalance:.2f}")
-    axs[1].axvline(median_imbalance, c='green', label=f"Median: {median_imbalance:.2f}")
-    axs[1].set_title(f"Distribution of imbalance")
-    axs[1].set_xlim(xmin=-30, xmax=30)
-    axs[1].set_xlabel("Action selection imbalance (Partner 1 - Partner 0)")
-    axs[1].set_ylabel(f"Frequency out of {len(test_set)} test episodes")
-    axs[1].legend()
+    axes[1].hist(imbalances.numpy(), bins=40)
+    axes[1].axvline(mean_imbalance, c='red', label=f"Mean: {mean_imbalance:.2f}")
+    axes[1].axvline(median_imbalance, c='green', label=f"Median: {median_imbalance:.2f}")
+    axes[1].set_title(f"Distribution of imbalance")
+    axes[1].set_xlim(xmin=-30, xmax=30)
+    axes[1].set_xlabel("Action selection imbalance (Partner 1 - Partner 0)")
+    axes[1].legend()
 
-    plt.tight_layout()
-    plt.show()
+    if show:
+        plt.tight_layout()
+        plt.show()
 
+    data =  pd.DataFrame({
+        'Reward_loss': [model.reward_loss_coef],
+        'Equity_loss': [model.equity_loss_coef],
+        'Accuracy': [acc],
+        'Excess reward': [mean_excess_rwd],
+        'Imbalance': [mean_imbalance]
+    })
+    data = data.set_index(['Reward_loss', 'Equity_loss'])
+
+    return data
 
 
 def uncertainty_generalization_eval(model, seed=None):
@@ -111,7 +125,7 @@ def uncertainty_generalization_eval(model, seed=None):
     plt.tight_layout()
     plt.show()
 
-def repeat_probability_eval(model):
+def repeat_probability_eval(model, show=True):
     BINS = 20
 
     model.eval()
@@ -137,9 +151,10 @@ def repeat_probability_eval(model):
 
     # Plot statistics by bins
     plt.scatter(probs_by_bin['reward'], probs_by_bin['repeat'],
-                label=f'Probabilities by bins of {1/BINS:.2f} reward'
+                label=str(model)
                 )
-    plt.title(f'Probability of repeating any action given the reward it received\n{model}')
+    plt.ylim(0, 1)
+    plt.title(f'Probability of repeating any action given the reward it received (bins of {1/BINS:.2f})')
     plt.ylabel('Probability of repeating last action')
     plt.xlabel('Reward of last action')
 
@@ -160,7 +175,8 @@ def repeat_probability_eval(model):
     except RuntimeError:
         print("Unable to fit sigmoid curve")
     plt.legend()
-    plt.show()
+    if show:
+        plt.show()
 
 def visualize_play(model: RNN, idx: int = 0):
     model.eval()
@@ -187,8 +203,36 @@ def evaluate(model: RNN, seed):
     visualize_play(model)
 
 
+def comparative_evaluation(versions: List[str], seed: int) -> pd.DataFrame:
+    models = [RNN.load(version) for version in versions]
+    stats = []
+
+    # Quantitative evaluation
+    fig, axes = plt.subplots(len(models), 2, figsize=(2 * HIST_WIDTH, HIST_HEIGHT * len(models)), sharey=True, sharex=True)
+    for i, model in enumerate(models):
+        torch.manual_seed(seed)
+        model_stats = quantitative_eval(model, show=False, axes=axes[i])
+        axes[i][1].text(-55, 50, model.multiline_str(),
+                        bbox=dict(facecolor='white', edgecolor='black', boxstyle='round,pad=1'))
+        stats.append(model_stats)
+
+    plt.subplots_adjust(hspace=0.5, wspace=0.5)
+    plt.savefig('plot')
+    plt.show()
+
+    # Repeat Probability evaluation
+    for model in models:
+        torch.manual_seed(seed)
+        repeat_probability_eval(model, show=False)
+    plt.show()
+
+    return pd.concat(stats)
+
+
 if __name__ == '__main__':
     args = parser.parse_args()
-    model = RNN.load(args.version)
-    evaluate(model, seed=args.seed, quick=True)
+    model = RNN.load('version_25')
+    # repeat_probability_eval(model)
+    comparative_evaluation(['version_24', 'version_25', 'version_26', 'version_27'], 42)
+
 

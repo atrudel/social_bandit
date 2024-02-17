@@ -2,7 +2,9 @@
 lightning_logs
 *.npy
 data
-
+.DS_Store
+*.png
+essais.ipynb
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
