@@ -47,23 +47,25 @@ def quantitative_eval(model, show=True, axes=None):
         fig, axes = plt.subplots(1, 2, figsize=(12, 6), sharey=True)
 
     # Plot excess rewards histogram
-    axes[0].hist(excess_rwds.numpy(), bins=50)
-    axes[0].axvline(mean_excess_rwd, c='red', label=f"Mean: {median_excess_rwd:.2f}")
-    axes[0].axvline(median_excess_rwd, c='green', label=f"Median: {median_excess_rwd:.2f}")
-    axes[0].set_title(f"Distribution of excess rewards")
-    axes[0].set_xlim(xmin=-0.1, xmax=0.4)
-    axes[0].set_xlabel(f"Excess reward")
-    axes[0].set_ylabel(f"Frequency (/{len(test_set)} episodes")
-    axes[0].legend()
+    ax_rwd = axes[0]
+    ax_rwd.hist(excess_rwds.numpy(), bins=50)
+    ax_rwd.axvline(mean_excess_rwd, c='red', label=f"Mean: {median_excess_rwd:.2f}")
+    ax_rwd.axvline(median_excess_rwd, c='green', label=f"Median: {median_excess_rwd:.2f}")
+    ax_rwd.set_title(f"Distribution of excess rewards")
+    ax_rwd.set_xlim(xmin=-0.1, xmax=0.4)
+    ax_rwd.set_xlabel(f"Excess reward")
+    ax_rwd.set_ylabel(f"Frequency (/{len(test_set)} episodes")
+    ax_rwd.legend()
 
     # Plot imbalances histogram
-    axes[1].hist(imbalances.numpy(), bins=40)
-    axes[1].axvline(mean_imbalance, c='red', label=f"Mean: {mean_imbalance:.2f}")
-    axes[1].axvline(median_imbalance, c='green', label=f"Median: {median_imbalance:.2f}")
-    axes[1].set_title(f"Distribution of imbalance")
-    axes[1].set_xlim(xmin=-30, xmax=30)
-    axes[1].set_xlabel("Action selection imbalance (Partner 1 - Partner 0)")
-    axes[1].legend()
+    ax_imbalance = axes[1]
+    ax_imbalance.hist(imbalances.numpy(), bins=40)
+    ax_imbalance.axvline(mean_imbalance, c='red', label=f"Mean: {mean_imbalance:.2f}")
+    ax_imbalance.axvline(median_imbalance, c='green', label=f"Median: {median_imbalance:.2f}")
+    ax_imbalance.set_title(f"Distribution of imbalance")
+    ax_imbalance.set_xlim(xmin=-30, xmax=30)
+    ax_imbalance.set_xlabel("Action selection imbalance (Partner 1 - Partner 0)")
+    ax_imbalance.legend()
 
     if show:
         plt.tight_layout()
@@ -178,7 +180,7 @@ def repeat_probability_eval(model, show=True):
     if show:
         plt.show()
 
-def visualize_play(model: RNN, idx: int = 0):
+def visualize_play(model: RNN, idx: int = 0, show: bool = True):
     model.eval()
     test_set = BanditDataset.load(name='test', directory=DATA_DIR)
     test_dataloader = DataLoader(test_set, batch_size=len(test_set))
@@ -190,9 +192,10 @@ def visualize_play(model: RNN, idx: int = 0):
     test_set.plot(idx, show=False)
     plt.scatter(list(range(len(actions_to_plot))), actions_to_plot + 0.05,
                 label='Model actions', marker='+', c='red')
-    plt.plot(list(range(len(probs_to_plot))), probs_to_plot, c='red', label='Model output probability')
+    plt.plot(list(range(len(probs_to_plot))), probs_to_plot, color='red', label=str(model))
     plt.legend(bbox_to_anchor=(1, 0.5), loc="upper left")
-    plt.show()
+    if show:
+        plt.show()
 
 def evaluate(model: RNN, seed):
     torch.manual_seed(seed)
@@ -224,15 +227,21 @@ def comparative_evaluation(versions: List[str], seed: int) -> pd.DataFrame:
     for model in models:
         torch.manual_seed(seed)
         repeat_probability_eval(model, show=False)
+    plt.legend(bbox_to_anchor=(1, 0.5), loc="upper left")
     plt.show()
 
+    # Visualize play
+    test_set = BanditDataset.load(name='test', directory=DATA_DIR).plot(0, show=False)
+    for model in models:
+        visualize_play(model, 0, show=False)
+    plt.show()
     return pd.concat(stats)
 
 
 if __name__ == '__main__':
     args = parser.parse_args()
-    model = RNN.load('version_25')
-    # repeat_probability_eval(model)
-    comparative_evaluation(['version_24', 'version_25', 'version_26', 'version_27'], 42)
+    # quantitative_eval(RNN.load('version_36'))
+    # quantitative_eval(RNN.load('version_37'))
+    comparative_evaluation(['version_35', 'version_36', 'version_37'], 42)
 
 
