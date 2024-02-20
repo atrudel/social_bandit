@@ -37,11 +37,13 @@ def quantitative_eval(model, show=True, axes=None):
     median_excess_rwd = excess_rwds.median().item()
     mean_imbalance = imbalances.mean().item()
     median_imbalance = imbalances.median().item()
-    print(model)
-    print('-' * len(str(model)))
-    print(f"Avg. Accuracy on test set: {acc:.3f}")
-    print(f"Avg. Excess reward on test set: {mean_excess_rwd:.3f}")
-    print(f"Avg. Imbalance on test set: {mean_imbalance:.3f}")
+
+    if show:
+        print(model)
+        print('-' * len(str(model)))
+        print(f"Avg. Accuracy on test set: {acc:.3f}")
+        print(f"Avg. Excess reward on test set: {mean_excess_rwd:.3f}")
+        print(f"Avg. Imbalance on test set: {mean_imbalance:.3f}")
 
     if axes is None:
         fig, axes = plt.subplots(1, 2, figsize=(12, 6), sharey=True)
@@ -152,9 +154,7 @@ def repeat_probability_eval(model, show=True):
     probs_by_bin = groups.mean()
 
     # Plot statistics by bins
-    plt.scatter(probs_by_bin['reward'], probs_by_bin['repeat'],
-                label=str(model)
-                )
+    scatter = plt.scatter(probs_by_bin['reward'], probs_by_bin['repeat'], label=str(model))
     plt.ylim(0, 1)
     plt.title(f'Probability of repeating any action given the reward it received (bins of {1/BINS:.2f})')
     plt.ylabel('Probability of repeating last action')
@@ -172,7 +172,8 @@ def repeat_probability_eval(model, show=True):
         x_curve = np.linspace(0, 1, num=100)
         y_curve = logistic_function(x_curve, *params)
         plt.plot(x_curve, y_curve,
-                 label=f"Fitted curve: f(x) = {params[2]:.2f} + {1-params[2]:.2f} / (1 + exp(-{params[1]:.2f}( x - {params[0]:.2f})))"
+                 label=f"Fitted curve: f(x) = {params[2]:.2f} + {1-params[2]:.2f} / (1 + exp(-{params[1]:.2f}( x - {params[0]:.2f})))",
+                 c=scatter.get_facecolor()[0]
                  )
     except RuntimeError:
         print("Unable to fit sigmoid curve")
@@ -180,7 +181,7 @@ def repeat_probability_eval(model, show=True):
     if show:
         plt.show()
 
-def visualize_play(model: RNN, idx: int = 0, show: bool = True):
+def visualize_play(model: RNN, idx: int = 0, show: bool = True, color=None):
     model.eval()
     test_set = BanditDataset.load(name='test', directory=DATA_DIR)
     test_dataloader = DataLoader(test_set, batch_size=len(test_set))
@@ -189,10 +190,14 @@ def visualize_play(model: RNN, idx: int = 0, show: bool = True):
     actions, probs, rewards, targets, trajectories = model.process_trajectory(batch)
     actions_to_plot = actions[idx]
     probs_to_plot = probs[idx].detach().numpy()
-    test_set.plot(idx, show=False)
-    plt.scatter(list(range(len(actions_to_plot))), actions_to_plot + 0.05,
+    if color is None:
+        test_set.plot(idx, show=False)
+        plt.scatter(list(range(len(actions_to_plot))), actions_to_plot + 0.05,
                 label='Model actions', marker='+', c='red')
-    plt.plot(list(range(len(probs_to_plot))), probs_to_plot, color='red', label=str(model))
+        plt.plot(list(range(len(probs_to_plot))), probs_to_plot, c='red', label=f"Output prob {model}")
+    else:
+        plt.plot(list(range(len(probs_to_plot))), probs_to_plot, c=color, label=f"{model}")
+    plt.ylabel('Bandit reward / Model Output Probability')
     plt.legend(bbox_to_anchor=(1, 0.5), loc="upper left")
     if show:
         plt.show()
@@ -208,20 +213,6 @@ def evaluate(model: RNN, seed):
 
 def comparative_evaluation(versions: List[str], seed: int) -> pd.DataFrame:
     models = [RNN.load(version) for version in versions]
-    stats = []
-
-    # Quantitative evaluation
-    fig, axes = plt.subplots(len(models), 2, figsize=(2 * HIST_WIDTH, HIST_HEIGHT * len(models)), sharey=True, sharex=True)
-    for i, model in enumerate(models):
-        torch.manual_seed(seed)
-        model_stats = quantitative_eval(model, show=False, axes=axes[i])
-        axes[i][1].text(-55, 50, model.multiline_str(),
-                        bbox=dict(facecolor='white', edgecolor='black', boxstyle='round,pad=1'))
-        stats.append(model_stats)
-
-    plt.subplots_adjust(hspace=0.5, wspace=0.5)
-    plt.savefig('plot')
-    plt.show()
 
     # Repeat Probability evaluation
     for model in models:
@@ -231,9 +222,25 @@ def comparative_evaluation(versions: List[str], seed: int) -> pd.DataFrame:
     plt.show()
 
     # Visualize play
-    test_set = BanditDataset.load(name='test', directory=DATA_DIR).plot(0, show=False)
-    for model in models:
-        visualize_play(model, 0, show=False)
+    test_set = BanditDataset.load(name='test', directory=DATA_DIR)
+    test_set.plot(0, show=False, simplified=True)
+    color_cycle = ['Green', 'Red', 'Gray', 'Brown', 'Pink', 'Purple']
+    for i, model in enumerate(models):
+        visualize_play(model, 0, show=False, color=color_cycle[i])
+    plt.show()
+
+    # Quantitative evaluation
+    fig, axes = plt.subplots(len(models), 2, figsize=(2 * HIST_WIDTH, HIST_HEIGHT * len(models)))
+    stats = []
+    for i, model in enumerate(models):
+        torch.manual_seed(seed)
+        model_stats = quantitative_eval(model, show=False, axes=axes[i])
+        axes[i][1].text(-55, 50, model.multiline_str(),
+                        bbox=dict(facecolor='white', edgecolor='black', boxstyle='round,pad=1'))
+        stats.append(model_stats)
+
+    plt.subplots_adjust(hspace=0.5, wspace=0.5)
+    plt.savefig('plot')
     plt.show()
     return pd.concat(stats)
 

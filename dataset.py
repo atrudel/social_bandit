@@ -42,13 +42,17 @@ class BanditDataset(Dataset):
         target = np.argmax(values, axis=0).astype('float32')
         return means, values, target
 
-    def plot(self, item, comment=None, show=True):
+    def plot(self, item, comment=None, show=True, simplified=False):
         means, values, target = self[item]
-        plt.plot(values[0], label="Bandit 0: values", color="tab:blue")
-        plt.plot(means[0], label="Bandit 0: latent mean", color="tab:cyan", linestyle="dotted")
-        plt.plot(values[1], label="Bandit 1: values", color="orange")
-        plt.plot(means[1], label="Bandit 1: latent mean", color="tan", linestyle="dotted")
-        plt.scatter(list(range(len(values[0]))), target, label="target")
+        if simplified:
+            plt.plot(values[0], label="Bandit 0: values", color="tab:blue", linestyle='dashed', linewidth=2, alpha=0.7)
+            plt.plot(values[1], label="Bandit 1: values", color="orange", linestyle='dashed', linewidth=2, alpha=0.7)
+        else:
+            plt.plot(values[0], label="Bandit 0: reward values", color="tab:blue")
+            plt.plot(values[1], label="Bandit 1: reward values", color="orange")
+            plt.plot(means[0], label="Bandit 0: latent mean", color="tab:cyan", linestyle="dotted")
+            plt.plot(means[1], label="Bandit 1: latent mean", color="tan", linestyle="dotted")
+            plt.scatter(list(range(len(values[0]))), target, label="target")
         plt.title(f"Bandit trajectories (no {item})" + (f" - {comment}" if comment is not None else ""))
         plt.legend(bbox_to_anchor=(1, 0.5), loc="upper left")
         plt.xlabel("Time step")
