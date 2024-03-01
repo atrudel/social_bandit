@@ -9,10 +9,10 @@ from matplotlib import pyplot as plt
 from scipy.optimize import curve_fit
 from torch.utils.data import DataLoader
 
-from RNN import RNN
-from config import POINTS_PER_TURN, DATA_DIR
-from data_generator import GeneralizationDatasetBundle
-from dataset import BanditDataset
+from models.RNN import RNN
+from config import DATA_DIR
+from data_generation.data_generator import GeneralizationDatasetBundle
+from data_generation.dataset import BanditDataset
 from metrics import accuracy, excess_reward, imbalance
 
 parser = argparse.ArgumentParser(description="Evaluation of model.")

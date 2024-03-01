@@ -1,7 +1,5 @@
-from typing import List
-
 from strategies import Strategy
-from utils import Choice, History
+from bandit_game.utils import Choice, History
 
 
 class Player:

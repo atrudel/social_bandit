@@ -1,7 +1,7 @@
 import abc
 
-from RNN import RNN
-from utils import History, Choice
+from models.RNN import RNN
+from bandit_game.utils import History, Choice
 
 
 # Base class

@@ -12,7 +12,7 @@ class Partner:
         # Play on a batch of games
         if traj_idx is None:
             return self.trajectories[:, trial]
-        # Play only one game, specified by traj_idx
+        # Play only one bandit_game, specified by traj_idx
         else:
             return self.trajectories[traj_idx, trial]
 

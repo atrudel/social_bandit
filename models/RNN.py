@@ -7,7 +7,7 @@ import torch.nn as nn
 from torchtyping import TensorType
 
 from config import MODEL_DIR, DEVICE
-from metrics import accuracy, excess_reward, imbalance, inequity
+from evaluation.metrics import accuracy, excess_reward, inequity
 
 
 class RNN(L.LightningModule):

@@ -6,9 +6,9 @@ from pathlib import Path
 from lightning.pytorch import Trainer, seed_everything
 from torch.utils.data import DataLoader
 
-from RNN import RNN
+from models.RNN import RNN
 from config import DEVICE, DATA_DIR
-from dataset import BanditDataset
+from data_generation.dataset import BanditDataset
 
 parser = argparse.ArgumentParser(description="Training of RNN model.")
 

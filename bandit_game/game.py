@@ -2,7 +2,7 @@ from matplotlib import pyplot as plt
 
 from partner import Partner
 from player import Player
-from utils import History, Choice
+from bandit_game.utils import History, Choice
 
 
 class Game:

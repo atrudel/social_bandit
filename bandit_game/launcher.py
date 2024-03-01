@@ -1,13 +1,13 @@
 import argparse
 import glob
 
-from dataset import BanditDataset
-from game.game import Game
-from game.partner import Partner
-from game.player import Player
-from game.strategies import RNNStrategy
+from data_generation.dataset import BanditDataset
+from bandit_game.game import Game
+from bandit_game.partner import Partner
+from bandit_game.player import Player
+from bandit_game.strategies import RNNStrategy
 
-parser = argparse.ArgumentParser(description="Launch a social bandit game.")
+parser = argparse.ArgumentParser(description="Launch a social bandit bandit_game.")
 
 parser.add_argument('--data_dir', type=str, default='.',
                     help='Directory containing bandit trajectory data files')
