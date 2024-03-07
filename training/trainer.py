@@ -121,7 +121,7 @@ class Trainer:
 
 
 if __name__ == '__main__':
-    model = RNNforBinaryAction(hidden_size=48, num_layers=1)
+    model = RNNforBinaryAction(hidden_size=128, num_layers=2)
     policy_model = RNNChooserPolicy(model)
     env = Env(
         chooser=Chooser(policy_model),
@@ -131,7 +131,7 @@ if __name__ == '__main__':
     trainer = Trainer(env=env,
                       model=model,
                       objective_function=RewardObjectiveFunction(discount_factor=0.5),
-                      training_name='test_training',
+                      training_name='test_training_large_rnn',
                       experiment_dir=Path(config.EXPERIMENT_DIR) / 'test_exp',
                       debug=True
                       )

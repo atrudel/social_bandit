@@ -5,6 +5,7 @@ data
 .DS_Store
 *.png
 essais.ipynb
+experiments
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

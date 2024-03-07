@@ -2,6 +2,8 @@ import abc
 
 import torch
 from torch import Tensor
+import scipy
+
 
 class ObjectiveFunction(abc.ABC):
     """Abstract class for all objective functions."""
@@ -13,6 +15,7 @@ class ObjectiveFunction(abc.ABC):
 class RewardObjectiveFunction(ObjectiveFunction):
     def __init__(self, discount_factor: float):
         self.discount_factor: float = discount_factor
+
     def compute_loss(self, probs: Tensor, actions: Tensor, rewards: Tensor) -> Tensor:
         returns: Tensor = self._compute_returns(rewards)
         action_probs = probs * actions + (1 - probs) * (1 - actions)
@@ -21,8 +24,7 @@ class RewardObjectiveFunction(ObjectiveFunction):
         return loss.mean()
 
     def _compute_returns(self, rewards: Tensor) -> Tensor:
-        returns = torch.zeros_like(rewards)
-        length = rewards.shape[1]
-        for t in range(length):
-            returns[:, t] = sum([rewards[:, t+j] * self.discount_factor**j for j in range(length-t)])
-        return returns
+        """Computes the cumulative sum of discounted future rewards for each time step (called return)"""
+        reversed_rewards = rewards.flip(1).numpy()
+        reversed_returns = scipy.signal.lfilter([1], [1, -self.discount_factor], reversed_rewards, axis=1)
+        return torch.tensor(reversed_returns).flip(1).float()
