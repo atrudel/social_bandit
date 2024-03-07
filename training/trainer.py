@@ -30,18 +30,20 @@ class Trainer:
                  training_name: str,
                  experiment_dir: Path = config.EXPERIMENT_DIR / 'default_experiment',
                  data_dir: Path = config.DATA_DIR,
+                 validate_every_n_steps: int = config.VALIDATE_EVERY_NSTEPS,
                  debug: bool = False):
         self.env: Env = env
         self.model: nn.Module = model
         self.optimizer: Optimizer = torch.optim.Adam(self.model.parameters(), )
         self.objective_function: ObjectiveFunction = objective_function
+        self.validate_every_n_steps: int = validate_every_n_steps
         self.training_dir: Path = experiment_dir / training_name
         log_dir = self.training_dir / 'tb_logs'
         self.writer: SummaryWriter = SummaryWriter(log_dir)
         self.data_dir: Path = data_dir
         self.debug: bool = debug
 
-    def launch_training(self, n_epochs: int, seed: int, batch_size: int):
+    def launch_training(self, n_epochs: int, seed: int, batch_size: int = config.BATCH_SIZE):
         os.makedirs(self.training_dir, exist_ok=self.debug)
         random.seed(seed)
         torch.manual_seed(seed)
@@ -59,22 +61,24 @@ class Trainer:
         for i_epoch in range(n_epochs):
             with tqdm(train_dataloader, unit='batch') as progress_bar:
                 progress_bar.set_description(f"Epoch {i_epoch}")
-                for j_batch, data_batch in enumerate(train_dataloader):
+                for j_batch, data_batch in enumerate(progress_bar):
                     global_step = i_epoch * len(train_dataloader) + j_batch
                     _, partner_trajectories, _ = data_batch
                     chooser_trajectory, _, _ = self.env.play_full_episode(partner_trajectories)
                     probs, actions, rewards = chooser_trajectory.get_full_trajectory()
                     train_loss = self._training_step(probs, actions, rewards, global_step)
-                    val_metrics = self._validation_step(val_dataloader, global_step)
 
-                    # Log to progress bar
-                    val_loss, val_accuracy, val_excess_reward = val_metrics
-                    progress_bar.set_postfix({
-                        'Loss/train': train_loss,
-                        'Loss/val': val_loss,
-                        'Accuracy/val': val_accuracy,
-                        'Excess reward/val': val_excess_reward
-                    })
+                    if global_step % self.validate_every_n_steps == 0:
+                        val_metrics = self._validation_step(val_dataloader, global_step)
+
+                        # Log to progress bar
+                        val_loss, val_accuracy, val_excess_reward = val_metrics
+                        progress_bar.set_postfix({
+                            'Loss/train': train_loss,
+                            'Loss/val': val_loss,
+                            'Accuracy/val': val_accuracy,
+                            'Excess reward/val': val_excess_reward
+                        })
 
     def _training_step(self, probs: Tensor, actions: Tensor, rewards: Tensor, global_step: int) -> None:
         """Performs one optimization step based on the actions and rewards of an episode
@@ -131,12 +135,12 @@ if __name__ == '__main__':
     trainer = Trainer(env=env,
                       model=model,
                       objective_function=RewardObjectiveFunction(discount_factor=0.5),
-                      training_name='test_training_large_rnn',
+                      training_name='test_training_large_rnn_batch_size_10000',
                       experiment_dir=Path(config.EXPERIMENT_DIR) / 'test_exp',
+                      validate_every_n_steps=1,
                       debug=True
                       )
     trainer.launch_training(
-        n_epochs=3,
+        n_epochs=10,
         seed=10,
-        batch_size=10
     )
