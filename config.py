@@ -1,14 +1,21 @@
 # Technical configuration
+import os
+from pathlib import Path
+
 import numpy as np
 
+
+root_directory = Path(os.path.dirname(os.path.realpath(__file__)))
+
 DEVICE = 'cpu'
-DATA_DIR = 'data'
+DATA_DIR = root_directory / 'data'
 MODEL_DIR = 'lightning_logs'
+EXPERIMENT_DIR = root_directory / 'experiments'
 
 # Task-related configuration
 POINTS_PER_TURN = 100
 
-SEQUENCE_LENGTH = 80
+N_TRIALS = 80
 
 TAU_FLUC = 3    # Fluctuation temperature for the latent means of the bandits
 TAU_SAMP = 2    # Sampling temperature for actual bandit values

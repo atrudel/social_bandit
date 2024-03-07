@@ -2,10 +2,9 @@ import argparse
 import glob
 
 from data_generation.dataset import BanditDataset
-from bandit_game.game import Game
+from bandit_game.environment import Env
 from bandit_game.partner import Partner
-from bandit_game.player import Player
-from bandit_game.strategies import RNNStrategy
+from bandit_game.chooser import RNNChooserPolicy, Chooser
 
 parser = argparse.ArgumentParser(description="Launch a social bandit bandit_game.")
 
@@ -26,9 +25,9 @@ if __name__ == '__main__':
         _, bandit_trajectories, _ = test_dataset[args.trajectory_no]  # dims: batch, 2, length
 
         checkpoint_path: str = glob.glob(f"lightning_logs/{args.experiment_name}/checkpoints/*.ckpt")[-1]
-        player = Player(RNNStrategy(checkpoint_path))
+        player = Chooser(RNNChooserPolicy(,,)
         partner1 = Partner(bandit_trajectories[0].reshape(1, -1))
         partner2 = Partner(bandit_trajectories[1].reshape(1, -1))
-        game = Game(player, partner1, partner2)
+        game = Env(player, partner1, partner2)
 
         game.visualize_one_round(args.trajectory_no)

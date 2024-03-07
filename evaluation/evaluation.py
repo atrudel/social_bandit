@@ -13,7 +13,7 @@ from models.RNN import RNN
 from config import DATA_DIR
 from data_generation.data_generator import GeneralizationDatasetBundle
 from data_generation.dataset import BanditDataset
-from metrics import accuracy, excess_reward, imbalance
+from metrics import accuracy_metric, excess_reward_metric, imbalance_metric
 
 parser = argparse.ArgumentParser(description="Evaluation of model.")
 parser.add_argument('--version', type=str, required=True, help='Version name of the model to load')
@@ -29,9 +29,9 @@ def quantitative_eval(model, show=True, axes=None):
     batch = list(test_dataloader)[0]
 
     actions, probs, rewards, targets, trajectories = model.process_trajectory(batch)
-    acc = accuracy(actions, targets).item()
-    excess_rwds = excess_reward(actions, trajectories, batch_average=False)
-    imbalances = imbalance(actions)
+    acc = accuracy_metric(actions, targets).item()
+    excess_rwds = excess_reward_metric(actions, trajectories, batch_average=False)
+    imbalances = imbalance_metric(actions)
 
     mean_excess_rwd = excess_rwds.mean().item()
     median_excess_rwd = excess_rwds.median().item()
@@ -112,12 +112,12 @@ def uncertainty_generalization_eval(model, seed=None):
         accuracies.loc[len(accuracies)] = pd.Series({
             'tau_fluc': np.round(tau_fluc, 2),
             'tau_samp': np.round(tau_samp, 2),
-            'accuracy': accuracy(actions, targets).item()
+            'accuracy': accuracy_metric(actions, targets).item()
         })
         excess_rewards.loc[len(excess_rewards)] = pd.Series({
             'tau_fluc': np.round(tau_fluc, 2),
             'tau_samp': np.round(tau_samp, 2),
-            'excess_reward': excess_reward(actions, trajectories).item()
+            'excess_reward': excess_reward_metric(actions, trajectories).item()
         })
 
     fig, axs = plt.subplots(1, 2, figsize=(12, 6), sharey=True)

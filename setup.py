@@ -22,5 +22,8 @@ setup(
         "jupyter",
         "seaborn"
     ],
+    tests_require=[
+        'pytest'
+    ],
     packages=find_packages()
 )

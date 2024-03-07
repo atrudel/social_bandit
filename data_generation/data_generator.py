@@ -11,7 +11,7 @@ import numpy as np
 from scipy.stats import beta
 from tqdm import tqdm
 
-from config import SEQUENCE_LENGTH, TAU_FLUC, TAU_SAMP, EPIMIN, EPIMAX, NEPI, DATA_DIR, GENERALIZATION_TAU_FLUCS, \
+from config import N_TRIALS, TAU_FLUC, TAU_SAMP, EPIMIN, EPIMAX, NEPI, DATA_DIR, GENERALIZATION_TAU_FLUCS, \
     GENERALIZATION_TAU_SAMPS, GENERALIZATION_SET_SIZE
 from dataset import BanditDataset
 
@@ -20,7 +20,7 @@ parser = argparse.ArgumentParser(description="Generation of Bandit trajectories.
 parser.add_argument('--n_train', type=int, default=100000, help='number of training examples')
 parser.add_argument('--n_val', type=int, default=10000, help='number of validation examples')
 parser.add_argument('--n_test', type=int, default=1000, help='number of test examples')
-parser.add_argument('--length', type=int, default=SEQUENCE_LENGTH, help='length of the trial sequences')
+parser.add_argument('--length', type=int, default=N_TRIALS, help='length of the trial sequences')
 parser.add_argument('--tau_fluc', type=float, default=TAU_FLUC, help='temperature of the fluctuation of the mean')
 parser.add_argument('--tau_samp', type=float, default=TAU_SAMP, help='temperature of the sampling')
 parser.add_argument('--epimin', type=int, default=EPIMIN, help='mininum length of an episode')
@@ -82,7 +82,7 @@ class BanditGenerator:
         self.nepi = nepi
         self.verbose = verbose
 
-    def generate_dataset(self, size, name=None, length=SEQUENCE_LENGTH) -> BanditDataset:
+    def generate_dataset(self, size, name=None, length=N_TRIALS) -> BanditDataset:
         # Generate 'batch_size' pairs of bandit trajectories
         means = self._generate_latent_means(length, size)
         values = self._sample_values(means)
@@ -132,7 +132,7 @@ class GeneralizationDatasetBundle:
                 data_generator = BanditGenerator(tau_fluc=tau_fluc, tau_samp=tau_samp, verbose=False)
                 dataset: BanditDataset = data_generator.generate_dataset(size=size,
                                                                          name=self._format_filename(tau_fluc, tau_samp),
-                                                                         length=SEQUENCE_LENGTH)
+                                                                         length=N_TRIALS)
                 self.datasets[tau_fluc][tau_samp] = dataset
                 progress_bar.update(1)
         return self
