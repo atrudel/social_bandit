@@ -122,6 +122,9 @@ class Trainer:
 
         return avg_loss.item(), avg_accuracy.item(), avg_excess_reward.item()
 
+    def save(self):
+        # Todo
+        raise NotImplementedError
 
 
 if __name__ == '__main__':
