@@ -3,10 +3,10 @@ from typing import Tuple, List
 import torch
 from torch import Tensor
 
-import config
-from bandit_game.chooser import Chooser
-from bandit_game.partner import Partner
-from bandit_game.utils import History
+from social_bandit import config
+from social_bandit.game.chooser import Chooser
+from social_bandit.game.partner import Partner
+from social_bandit.game.utils import History
 
 
 class Env:

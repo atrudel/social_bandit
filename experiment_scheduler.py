@@ -1,6 +1,6 @@
 from argparse import Namespace
 
-from config import DATA_DIR
+from social_bandit.config import DATA_DIR
 from trainer import launch_training
 
 

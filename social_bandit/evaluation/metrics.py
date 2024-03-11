@@ -1,7 +1,7 @@
 import torch
 from torchmetrics.classification import BinaryAccuracy
 
-from config import N_TRIALS
+from social_bandit.config import N_TRIALS
 
 
 def accuracy_metric(inputs, targets):

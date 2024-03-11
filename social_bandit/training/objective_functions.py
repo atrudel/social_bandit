@@ -11,6 +11,14 @@ class ObjectiveFunction(abc.ABC):
     def compute_loss(self, probs, actions: Tensor, rewards: Tensor) -> Tensor:
         raise NotImplementedError
 
+class MeanRewardObjectiveFunction(ObjectiveFunction):
+    def compute_loss(self, probs, actions, rewards):
+        mean_rewards = rewards.mean(dim=1).unsqueeze(1)
+        deltas = rewards - mean_rewards
+        action_probs = probs * actions + (1 - probs) * (1 - actions)
+        losses = -deltas * action_probs
+        loss = losses.sum(1).mean()
+        return loss
 
 class RewardObjectiveFunction(ObjectiveFunction):
     def __init__(self, discount_factor: float):

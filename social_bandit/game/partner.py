@@ -3,7 +3,7 @@ from typing import Optional, Callable
 
 from torch import Tensor
 
-from bandit_game.utils import History
+from social_bandit.game.utils import History
 
 
 class Partner:

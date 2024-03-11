@@ -6,7 +6,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from torch.utils.data import Dataset
 
-from config import DATA_DIR
+from social_bandit.config import DATA_DIR
 
 
 FILE_SUFFIX = '_dataset.npy'

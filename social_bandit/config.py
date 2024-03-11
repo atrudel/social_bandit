@@ -3,12 +3,12 @@ from pathlib import Path
 
 import numpy as np
 
-root_directory = Path(os.path.dirname(os.path.realpath(__file__)))
+root_directory = Path(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 
 # Model training configuration
 DEVICE = 'cpu'
 DATA_DIR = root_directory / 'data'
-MODEL_DIR = 'lightning_logs' # Deprecated
+MODEL_DIR = '../lightning_logs'  # Deprecated
 EXPERIMENT_DIR = root_directory / 'experiments'
 BATCH_SIZE = 1000
 VALIDATE_EVERY_NSTEPS = 10

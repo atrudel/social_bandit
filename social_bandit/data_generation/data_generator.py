@@ -11,7 +11,7 @@ import numpy as np
 from scipy.stats import beta
 from tqdm import tqdm
 
-from config import N_TRIALS, TAU_FLUC, TAU_SAMP, EPIMIN, EPIMAX, NEPI, DATA_DIR, GENERALIZATION_TAU_FLUCS, \
+from social_bandit.config import N_TRIALS, TAU_FLUC, TAU_SAMP, EPIMIN, EPIMAX, NEPI, DATA_DIR, GENERALIZATION_TAU_FLUCS, \
     GENERALIZATION_TAU_SAMPS, GENERALIZATION_SET_SIZE
 from dataset import BanditDataset
 

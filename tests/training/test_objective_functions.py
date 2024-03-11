@@ -2,7 +2,7 @@ import math
 
 import torch
 
-from training.objective_functions import RewardObjectiveFunction
+from social_bandit.training import RewardObjectiveFunction
 
 
 def test_compute_returns_in_reward_obj_func():

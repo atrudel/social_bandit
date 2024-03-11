@@ -6,8 +6,8 @@ import torch
 import torch.nn as nn
 from torchtyping import TensorType
 
-from config import MODEL_DIR, DEVICE
-from evaluation.metrics import accuracy_metric, excess_reward_metric, inequity_metric
+from social_bandit.config import MODEL_DIR, DEVICE
+from social_bandit.evaluation.metrics import accuracy_metric, excess_reward_metric, inequity_metric
 
 
 class RNN(L.LightningModule):
