@@ -36,3 +36,6 @@ class Chooser:
     def reset(self, trajectory: Optional[Tensor] = None):
         self.history = History()
         self.policy.reset(trajectory)
+
+    def __repr__(self) -> str:
+        return f"Chooser(policy={str(self.policy)})"

@@ -1,6 +1,8 @@
+import argparse
 import glob
 import os
 from pathlib import Path
+from pprint import pprint
 from typing import List
 import re
 
@@ -9,7 +11,7 @@ from social_bandit.game.chooser import Chooser
 from social_bandit.game.environment import Env
 from social_bandit.game.partner import DataPartner
 from social_bandit.models.rnn_chooser import RNNChooserPolicy
-from social_bandit.training.objective_functions import RewardObjectiveFunction
+from social_bandit.training.objective_functions import RewardObjFunc, AdvantageObjFunc, EntropyObjFunc
 from social_bandit.training.trainer import Trainer
 
 
@@ -21,13 +23,17 @@ class Experiment:
         self.name: str = name
         if not debug:
             experiment_dir: Path = self._create_folder(name)
+            with open(experiment_dir / 'description.txt', 'w') as f:
+                pprint(f'Experiment: {name}', stream=f)
+                pprint(f"Training Params:", stream=f)
+                pprint(self.training_params, stream=f)
 
         for i, params in enumerate(self.training_params):
             chooser_policy_model = RNNChooserPolicy(
                 hidden_size=params['hidden_size'],
                 n_layers=params['n_layers']
             )
-            objective_function = RewardObjectiveFunction(discount_factor=params['discount_factor'])
+            objective_function = params['objective_function']
             env = Env(
                 chooser=Chooser(chooser_policy_model),
                 partner_0=DataPartner(),
@@ -49,7 +55,7 @@ class Experiment:
                 debug=debug
             )
             if not debug:
-                trainer.save()
+                trainer.save_agents()
 
     def _pack_training_params(self, params):
         num_trainings = self._count_number_of_trainings(params)
@@ -94,13 +100,22 @@ class Experiment:
 
 
 if __name__ == '__main__':
-    exp = Experiment(
-        n_layers=2,
-        hidden_size=148,
-        seed=[1, 2, 3, 4],
-        learning_rate=1e-3,
-        discount_factor=0.5,
-        n_epochs=5,
+    parser = argparse.ArgumentParser(description="Launching an experiment to train a model on Social Bandit")
+    parser.add_argument('--debug', action='store_true', help='debug mode')
+    args = parser.parse_args()
 
+    exp = Experiment(
+        n_layers=1,
+        hidden_size=48,
+        seed=1,
+        learning_rate=1e-3,
+        objective_function=[
+            AdvantageObjFunc(),
+            EntropyObjFunc(AdvantageObjFunc(), 0.5),
+            EntropyObjFunc(AdvantageObjFunc(), 1),
+            EntropyObjFunc(AdvantageObjFunc(), 3),
+            EntropyObjFunc(AdvantageObjFunc(), 5),
+        ],
+        n_epochs=70,
     )
-    exp.launch_experiment("RL_convergence")
+    exp.launch_experiment("Entropy_coefficient", debug=args.debug)

@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Optional, Callable
+from typing import Optional
 
 from torch import Tensor
 
@@ -52,3 +52,6 @@ class DataPartner(Partner):
     def load_trajectory(self, trajectory: Tensor):
         assert trajectory.ndim == 2, "Trajectory array should have 2 dimensions: batch x length"
         self.trajectory = trajectory
+
+    def __repr__(self):
+        return f"DataPartner()"

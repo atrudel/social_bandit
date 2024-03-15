@@ -20,7 +20,7 @@ from social_bandit.game.partner import DataPartner
 from social_bandit.data_generation.dataset import BanditDataset
 from social_bandit.evaluation.metrics import accuracy_metric, excess_reward_metric
 from social_bandit.models.rnn_chooser import RNNChooserPolicy
-from social_bandit.training.objective_functions import ObjectiveFunction, MeanRewardObjectiveFunction
+from social_bandit.training.objective_functions import ObjectiveFunction, AdvantageObjFunc
 
 
 class Trainer:
@@ -42,6 +42,7 @@ class Trainer:
         self.save_dir: Path = experiment_dir / training_name
         self.data_dir: Path = data_dir
         self.writer: Optional[SummaryWriter] = None
+        self.training_params: dict = {}
 
     def launch_training(self, n_epochs: int,
                         seed: int,
@@ -54,6 +55,12 @@ class Trainer:
         random.seed(seed)
         torch.manual_seed(seed)
         np.random.seed(seed)
+        self.training_params = {
+            'n_epochs': n_epochs,
+            'seed': seed,
+            'learning_rate': learning_rate,
+            'batch_size': batch_size
+        }
 
         train_data = BanditDataset.load(name='train', directory=self.data_dir)
         val_data = BanditDataset.load(name='val', directory=self.data_dir)
@@ -78,9 +85,11 @@ class Trainer:
                     chooser_trajectory, _, _ = self.env.play_full_episode(partner_trajectories)
                     probs, actions, rewards = chooser_trajectory.get_full_trajectory()
                     train_loss = self._training_step(probs, actions, rewards)
+                    grad_norm = self._get_grad_norm(self.trained_model)
 
                     if not debug:
                         self.writer.add_scalar('Loss/train', train_loss, global_step)
+                        self.writer.add_scalar('Grad_norm/train', grad_norm, global_step)
 
                     if global_step % self.validate_every_n_steps == 0:
                         val_metrics = self._validation_step(val_dataloader)
@@ -141,37 +150,42 @@ class Trainer:
 
         return avg_loss.item(), avg_accuracy.item(), avg_excess_reward.item()
 
-    def save_models(self):
+    def _get_grad_norm(self, model: nn.Module):
+        total_norm = 0.0
+        for p in model.parameters():
+            if p.grad is not None:
+                param_norm = p.grad.detach().data.norm(2)
+                total_norm += param_norm.item() ** 2
+        total_norm = total_norm ** (1. / 2)
+        return total_norm
+
+    def save_agents(self):
         with open(self.save_dir / 'description.txt', 'w') as file:
-            file.write(self)
-        with open(self.save_dir / 'chooser', 'rb') as file:
+            file.write(repr(self))
+        with open(self.save_dir / 'chooser.pickle', 'wb') as file:
             pickle.dump(self.env.chooser, file)
-        with open(self.save_dir / 'partner_0', 'wb') as file:
+        with open(self.save_dir / 'partner_0.pickle', 'wb') as file:
             pickle.dump(self.env.partner_0, file)
-        with open(self.save_dir / 'partner_1', 'wb') as file:
+        with open(self.save_dir / 'partner_1.pickle', 'wb') as file:
             pickle.dump(self.env.partner_1, file)
 
     def __repr__(self) -> str:
-        return f"""Training: {self.training_name}
-        
-        Model:
-        {self.trained_model}
-        
+        return f"""\
+        Training: {self.training_name}
+        \
+        Training parameters:
+        {self.training_params}
+        \
         Objective function:
         {self.objective_function}
-        
-        Training parameters:
-        - num_epochs: {self}
-        
+        \
+        Model:
+        {repr(self.trained_model)}
+\
         =ENV====================
-        Chooser:
-        {self.env.chooser}
-        
-        Partner 0:
-        {self.env.partner_0}
-        
-        Partner 1:
-        {self.env.partner_1}
+        Chooser: {self.env.chooser}
+        Partner 0: {self.env.partner_0}
+        Partner 1: {self.env.partner_1}
         """
 
 
@@ -184,7 +198,7 @@ if __name__ == '__main__':
     )
     trainer = Trainer(env=env,
                       trained_model=policy_model,
-                      objective_function=MeanRewardObjectiveFunction(),
+                      objective_function=AdvantageObjFunc(),
                       training_name='test_training_save',
                       experiment_dir=Path(config.EXPERIMENT_DIR) / 'test_exp',
                       validate_every_n_steps=1,
