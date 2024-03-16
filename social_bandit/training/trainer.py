@@ -27,7 +27,7 @@ class Trainer:
     def __init__(self,
                  env: Env,
                  trained_model: nn.Module,
-                 objective_function: ObjectiveFunction,
+                 obj_func: ObjectiveFunction,
                  training_name: str,
                  experiment_dir: Path = config.EXPERIMENT_DIR / 'default_experiment',
                  data_dir: Path = config.DATA_DIR,
@@ -36,10 +36,10 @@ class Trainer:
         self.env: Env = env
         self.trained_model: nn.Module = trained_model
         self.optimizer: Optional[Optimizer] = None
-        self.objective_function: ObjectiveFunction = objective_function
+        self.objective_function: ObjectiveFunction = obj_func
         self.validate_every_n_steps: int = validate_every_n_steps
         self.training_name: str = training_name
-        self.save_dir: Path = experiment_dir / training_name
+        self.save_dir: Path = experiment_dir / training_name if experiment_dir else None
         self.data_dir: Path = data_dir
         self.writer: Optional[SummaryWriter] = None
         self.training_params: dict = {}
@@ -72,6 +72,7 @@ class Trainer:
         self._training_loop(n_epochs, train_dataloader, val_dataloader, debug)
 
     def _training_loop(self, n_epochs: int, train_dataloader: DataLoader, val_dataloader: DataLoader, debug: bool = False):
+        self.trained_model.train()
         best_val_loss = float('inf')
 
         for i_epoch in range(n_epochs):
@@ -108,16 +109,15 @@ class Trainer:
                             self.writer.add_scalar('Accuracy/val', val_accuracy, global_step)
                             self.writer.add_scalar('Excess_rwd/val', val_excess_reward, global_step)
 
-                        # Save best model
-                        if val_loss < best_val_loss:
-                            self.trained_model.save(self.save_dir / 'best_model.pth')
-                            best_val_loss = val_loss
-
-        self.trained_model.save(self.save_dir / 'final_model.pth')
+                            # Save best model
+                            if val_loss < best_val_loss:
+                                self.trained_model.save(self.save_dir / 'best_model.pth')
+                                best_val_loss = val_loss
+        if not debug:
+            self.trained_model.save(self.save_dir / 'final_model.pth')
 
     def _training_step(self, probs: Tensor, actions: Tensor, rewards: Tensor) -> float:
         """Performs one optimization step based on the actions and rewards of an episode"""
-        self.trained_model.train()
         self.optimizer.zero_grad()
         loss = self.objective_function.compute_loss(probs, actions, rewards)
         loss.backward()
@@ -198,7 +198,7 @@ if __name__ == '__main__':
     )
     trainer = Trainer(env=env,
                       trained_model=policy_model,
-                      objective_function=AdvantageObjFunc(),
+                      obj_func=AdvantageObjFunc(),
                       training_name='test_training_save',
                       experiment_dir=Path(config.EXPERIMENT_DIR) / 'test_exp',
                       validate_every_n_steps=1,

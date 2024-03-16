@@ -6,6 +6,7 @@ data
 *.png
 essais.ipynb
 experiments
+archives
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

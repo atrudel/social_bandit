@@ -11,6 +11,10 @@ class ObjectiveFunction(abc.ABC):
     def compute_loss(self, probs: Tensor, actions: Tensor, rewards: Tensor) -> Tensor:
         raise NotImplementedError
 
+    @abc.abstractmethod
+    def __repr__(self) -> str:
+        raise NotImplementedError
+
 
 class AdvantageObjFunc(ObjectiveFunction):
     def compute_loss(self, probs, actions, rewards):
@@ -20,6 +24,10 @@ class AdvantageObjFunc(ObjectiveFunction):
         losses = -deltas * action_probs
         loss = losses.sum(1).mean()
         return loss
+
+    def __repr__(self) -> str:
+        return "AdvObj"
+
 
 class RewardObjFunc(ObjectiveFunction):
     def __init__(self, discount_factor: float):
@@ -39,7 +47,7 @@ class RewardObjFunc(ObjectiveFunction):
         return torch.tensor(reversed_returns).flip(1).float()
 
     def __repr__(self) -> str:
-        return f"RewardObjectiveFunction(discount_factor={self.discount_factor})"
+        return f"RwdObj({self.discount_factor})"
 
 
 class EntropyObjFunc(ObjectiveFunction):
@@ -56,4 +64,7 @@ class EntropyObjFunc(ObjectiveFunction):
         two_class_probs = torch.stack([probs, 1 - probs], dim=2)
         entropy = -torch.sum(two_class_probs * torch.log2(two_class_probs + 1e-10), dim=2)
         return entropy.mean()
+
+    def __repr__(self) -> str:
+        return f"({self.base_function}+{self.coefficient}*entropy)"
 

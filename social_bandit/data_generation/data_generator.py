@@ -13,7 +13,8 @@ from tqdm import tqdm
 
 from social_bandit.config import N_TRIALS, TAU_FLUC, TAU_SAMP, EPIMIN, EPIMAX, NEPI, DATA_DIR, GENERALIZATION_TAU_FLUCS, \
     GENERALIZATION_TAU_SAMPS, GENERALIZATION_SET_SIZE
-from dataset import BanditDataset
+from social_bandit.data_generation.dataset import BanditDataset
+
 
 parser = argparse.ArgumentParser(description="Generation of Bandit trajectories.")
 
@@ -160,7 +161,6 @@ class GeneralizationDatasetBundle:
 
     def _format_filename(self, tau_fluc, tau_samp) -> str:
         return f"tau_fluc={tau_fluc:.2g}__tau_samp={tau_samp:.2g}"
-
 
 
 if __name__ == '__main__':

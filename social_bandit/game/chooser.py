@@ -12,9 +12,10 @@ from social_bandit.game.utils import History
 ### Class for the Chooser Player
 
 class Chooser:
-    def __init__(self, policy):
+    def __init__(self, policy, training_description: str = None):
         self.policy = policy
         self.history: History = History()
+        self.training_description = training_description
 
     def make_choice(self, batch_size: int) -> Tensor:
         # On first trial play randomly
